@@ -73,6 +73,14 @@
       <span class="pill">流水號循環：1–500</span>
     </div>
   </section>
+@media print {
+  .tabs, .btn, .toolbar, .modal { display:none !important; }
+  body { background:#fff !important; color:#000 !important; }
+  .card { box-shadow:none !important; background:#fff !important; }
+  table { font-size:12px }
+  .sig-link { display:none !important; }
+  .sig-img { display:block !important; max-width:240px; }
+}
 
   <div style="height:10px"></div>
 
@@ -87,6 +95,8 @@
       </div>
       <div class="row">
         <button class="btn info" id="exportPending">匯出CSV（待簽收）</button>
+       <button class="btn" id="printPending">列印此頁</button>
+
         <span class="pill" id="pendingCount2">0 筆</span>
       </div>
     </div>
@@ -109,6 +119,8 @@
       </div>
       <div class="row">
         <button class="btn info" id="exportSigned">匯出CSV（已簽收）</button>
+        <button class="btn" id="printSigned">列印此頁</button>
+
         <span class="pill" id="signedCount">0 筆</span>
       </div>
     </div>
@@ -355,6 +367,15 @@ $('confirmSign').onclick=()=>{
   save(SIGNED, signed);
   modal.classList.remove('show'); renderPending(); renderSigned(); switchTab('signed');
 };
+// ====== 其他：列印按鈕 ======
+$('printPending') && ($('printPending').onclick = ()=>{
+  switchTab('pending');
+  setTimeout(()=>window.print(),50);
+});
+$('printSigned') && ($('printSigned').onclick  = ()=>{
+  switchTab('signed');
+  setTimeout(()=>window.print(),50);
+});
 
 // ====== 初次渲染 ======
 })();
