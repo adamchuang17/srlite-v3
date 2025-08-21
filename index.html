@@ -2,43 +2,45 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>SimpleReceiveLite v4 — 連動下拉</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SimpleReceiveLite v3</title>
   <style>
     body { font-family: Arial, sans-serif; margin: 20px; color:#0f172a }
     h1 { color: #2c3e50; margin-bottom:8px }
-    label { display:block; margin-top:10px }
-    select, input { padding:6px 8px; margin-top:5px; width:220px }
-    button { margin-top:12px; padding:8px 14px; border:0; border-radius:6px; background:#22c55e; color:#fff; cursor:pointer }
+    label { display: block; margin-top: 10px; }
+    select, input { padding: 6px 8px; margin-top: 5px; width: 220px; }
+    button { margin-top: 12px; padding: 8px 14px; border:0; border-radius:6px; background:#22c55e; color:#fff; cursor:pointer }
     button.secondary { background:#0ea5e9 }
     button.warn { background:#ef4444 }
-    button.ghost { background:#334155 }
-    table { border-collapse:collapse; margin-top:18px; width:100% }
-    th,td { border:1px solid #e5e7eb; padding:8px; text-align:center; font-size:14px }
-    th { background:#f8fafc }
-    .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px}
+    table { border-collapse: collapse; margin-top: 18px; width: 100%; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size:14px }
+    th { background: #f8fafc; }
+    .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
     .tip{color:#64748b; font-size:12px}
-    .group{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
-    .muted{color:#64748b}
-    .disabled { opacity:.6 }
   </style>
 </head>
 <body>
-  <h1>📦 SimpleReceiveLite v4</h1>
-  <div class="tip">收貨登錄＋三欄連動篩選（棟 → 樓 → 戶）。含「今日 / 全部」CSV 匯出。</div>
+  <h1>📦 SimpleReceiveLite v3</h1>
+  <div class="tip">（已內建 住址搜尋 + CSV 匯出：今日 / 全部）</div>
 
-  <!-- 收貨表單（連動） -->
   <form id="receiveForm">
     <label>棟別：
-      <select id="building" required></select>
+      <select id="building" required>
+        <option value="">請選擇</option>
+        <option value="47">甲棟 (47)</option>
+        <option value="47-7">乙棟 (47-7)</option>
+        <option value="47-6">丙棟 (47-6)</option>
+        <option value="47-5">丁棟 (47-5)</option>
+        <option value="47-3">戊棟 (47-3)</option>
+        <option value="47-1">己棟 (47-1)</option>
+      </select>
     </label>
 
     <label>樓層：
-      <select id="floor" required disabled></select>
+      <select id="floor" required></select>
     </label>
 
     <label>戶號：
-      <select id="unit" required disabled></select>
+      <select id="unit" required></select>
     </label>
 
     <label>貨件類型：
@@ -58,9 +60,13 @@
     </label>
 
     <label>貨運公司：
-      <input id="company" list="companyList" placeholder="大榮 / 新竹 / 宅配通 / 宅急便 / 其他" />
+      <input id="company" list="companyList" placeholder="選或輸入" />
       <datalist id="companyList">
-        <option value="大榮"><option value="新竹"><option value="宅配通"><option value="宅急便"><option value="其他">
+        <option value="大榮">
+        <option value="新竹">
+        <option value="宅配通">
+        <option value="宅急便">
+        <option value="其他">
       </datalist>
     </label>
 
@@ -72,23 +78,13 @@
     <span id="status" class="tip"></span>
   </form>
 
-  <!-- 三欄「連動」篩選（列表） -->
   <div class="toolbar">
-    <div class="group">
-      <span class="muted">篩選：</span>
-      <select id="bldF" title="棟別"></select>
-      <select id="floorF" title="樓層" disabled></select>
-      <select id="unitF" title="戶號" disabled></select>
-      <button id="resetFilters" class="ghost" type="button">清除篩選</button>
-    </div>
-    <div class="group">
-      <button id="exportToday" class="secondary" type="button">下載今日紀錄 (CSV)</button>
-      <button id="exportAll" class="secondary" type="button">下載全部紀錄 (CSV)</button>
-      <button id="clearAll" class="warn" type="button" title="僅清除本機保存的表格資料">清空紀錄</button>
-    </div>
+    <button id="searchBtn" class="secondary">依住址搜尋</button>
+    <button id="exportToday" class="secondary">下載今日紀錄 (CSV)</button>
+    <button id="exportAll" class="secondary">下載全部紀錄 (CSV)</button>
+    <button id="clearAll" class="warn" title="僅清除本機保存的表格資料">清空紀錄</button>
   </div>
 
-  <!-- 紀錄表格 -->
   <table id="recordTable">
     <thead>
       <tr>
@@ -107,246 +103,95 @@
     <tbody></tbody>
   </table>
 
-<script>
-  // ================== 常數 ==================
-  const BUILDINGS = ["甲","乙","丙","丁","戊","己"];      // 顯示用
-  const FLOORS = Array.from({length:14},(_,i)=> (i+1)+"樓");
-  const UNITS  = Array.from({length:8}, (_,i)=> "之"+(i+1));
+  <script>
+    const form = document.getElementById("receiveForm");
+    const tableBody = document.querySelector("#recordTable tbody");
+    const buildingSel = document.getElementById("building");
+    const floorSel = document.getElementById("floor");
+    const unitSel = document.getElementById("unit");
 
-  // ================== 元件 ==================
-  const form = document.getElementById("receiveForm");
-  const tableBody = document.querySelector("#recordTable tbody");
-  const status = document.getElementById("status");
+    let records = JSON.parse(localStorage.getItem("records") || "[]");
+    let counter = records.length ? (records[records.length-1].id % 500)+1 : 1;
 
-  const buildingSel = document.getElementById("building");
-  const floorSel    = document.getElementById("floor");
-  const unitSel     = document.getElementById("unit");
-
-  const bldF   = document.getElementById("bldF");
-  const floorF = document.getElementById("floorF");
-  const unitF  = document.getElementById("unitF");
-  const resetFiltersBtn = document.getElementById("resetFilters");
-
-  // ================== 資料儲存 ==================
-  let records = load();
-  let counter = records.length ? Math.max(...records.map(r=>r.id))+1 : 1;
-
-  function load(){
-    try { return JSON.parse(localStorage.getItem("records") || "[]"); }
-    catch { return []; }
-  }
-  function save(){ localStorage.setItem("records", JSON.stringify(records)); }
-
-  // ================== 工具 ==================
-  function fill(select, arr, {withAll=false, placeholder="請選擇"} = {}){
-    select.innerHTML = "";
-    if (withAll){
-      const opt = document.createElement("option");
-      opt.value = ""; opt.textContent = "全部";
-      select.appendChild(opt);
-    } else {
-      const opt0 = document.createElement("option");
-      opt0.value = ""; opt0.textContent = placeholder;
-      select.appendChild(opt0);
+    // 初始化樓層、戶號
+    function populateFloors() {
+      floorSel.innerHTML = '<option value="">請選擇</option>';
+      for(let i=1;i<=14;i++) floorSel.innerHTML += `<option value="${i}樓">${i}樓</option>`;
     }
-    arr.forEach(v=>{
-      const o=document.createElement("option");
-      o.value=v; o.textContent=v;
-      select.appendChild(o);
-    });
-  }
-  function todayKey(d=new Date()){
-    const pad=n=>String(n).padStart(2,"0");
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  }
-
-  // ================== 表單：連動下拉 ==================
-  function initFormSelectors(){
-    fill(buildingSel, BUILDINGS, {withAll:false, placeholder:"請選擇"});
-    // 初始時樓/戶鎖定
-    floorSel.disabled = true; unitSel.disabled = true;
-    fill(floorSel, [], {withAll:false, placeholder:"請先選棟"});
-    fill(unitSel,  [], {withAll:false, placeholder:"請先選樓"});
-  }
-
-  buildingSel.addEventListener("change", ()=>{
-    if (!buildingSel.value){
-      floorSel.disabled = true; unitSel.disabled = true;
-      fill(floorSel, [], {placeholder:"請先選棟"});
-      fill(unitSel,  [], {placeholder:"請先選樓"});
-      return;
+    function populateUnits() {
+      unitSel.innerHTML = '<option value="">請選擇</option>';
+      for(let i=1;i<=8;i++) unitSel.innerHTML += `<option value="之${i}">之${i}</option>`;
     }
-    fill(floorSel, FLOORS, {placeholder:"請選擇"});
-    floorSel.disabled = false;
+    populateFloors(); populateUnits();
 
-    // 重置戶別
-    unitSel.disabled = true;
-    fill(unitSel, [], {placeholder:"請先選樓"});
-  });
-
-  floorSel.addEventListener("change", ()=>{
-    if (!floorSel.value){
-      unitSel.disabled = true;
-      fill(unitSel, [], {placeholder:"請先選樓"});
-      return;
+    // 渲染表格
+    function render(data=records) {
+      tableBody.innerHTML="";
+      data.forEach(r=>{
+        let row=tableBody.insertRow();
+        row.insertCell().textContent=r.time;
+        row.insertCell().textContent=r.id;
+        row.insertCell().textContent=r.building;
+        row.insertCell().textContent=r.floor;
+        row.insertCell().textContent=r.unit;
+        row.insertCell().textContent=r.type;
+        row.insertCell().textContent=r.receiver;
+        row.insertCell().textContent=r.count;
+        row.insertCell().textContent=r.company;
+        row.insertCell().textContent=r.note;
+      });
+      localStorage.setItem("records",JSON.stringify(records));
     }
-    fill(unitSel, UNITS, {placeholder:"請選擇"});
-    unitSel.disabled = false;
-  });
-
-  // ================== 篩選：連動下拉 ==================
-  function initFilterSelectors(){
-    fill(bldF, BUILDINGS, {withAll:true});
-    // 初始：樓/戶禁用，顯示「全部」
-    floorF.disabled = true; unitF.disabled = true;
-    fill(floorF, [], {withAll:true});  // 只有「全部」
-    fill(unitF,  [], {withAll:true});  // 只有「全部"}
-
-    bldF.addEventListener("change", ()=>{
-      if (!bldF.value){
-        // 沒選棟＝樓/戶回到「全部」且禁用
-        floorF.disabled = true; unitF.disabled = true;
-        fill(floorF, [], {withAll:true});
-        fill(unitF,  [], {withAll:true});
-        render();
-        return;
-      }
-      // 選了棟 → 樓可選
-      fill(floorF, FLOORS, {withAll:true});
-      floorF.disabled = false;
-
-      // 戶重置
-      unitF.disabled = true;
-      fill(unitF, [], {withAll:true});
-      render();
-    });
-
-    floorF.addEventListener("change", ()=>{
-      if (!floorF.value){
-        unitF.disabled = true;
-        fill(unitF, [], {withAll:true});
-        render();
-        return;
-      }
-      // 選了樓 → 戶可選
-      fill(unitF, UNITS, {withAll:true});
-      unitF.disabled = false;
-      render();
-    });
-
-    unitF.addEventListener("change", render);
-
-    resetFiltersBtn.addEventListener("click", ()=>{
-      bldF.value = "";
-      floorF.disabled = true; unitF.disabled = true;
-      fill(floorF, [], {withAll:true});
-      fill(unitF,  [], {withAll:true});
-      render();
-    });
-  }
-
-  function addrMatch(rec, bld, floor, unit){
-    // rec.building e.g. 甲； rec.floor e.g. 5樓； rec.unit e.g. 之2
-    if (bld   && rec.building !== bld) return false;
-    if (floor && rec.floor    !== floor) return false;
-    if (unit  && rec.unit     !== unit) return false;
-    return true;
-  }
-
-  // ================== 表格渲染 ==================
-  function render(){
-    tableBody.innerHTML = "";
-    const b = bldF.value;
-    const f = floorF.value;
-    const u = unitF.value;
-
-    const rows = records.filter(r => addrMatch(r, b, f, u));
-    rows.forEach(r=>{
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${r.time}</td>
-        <td>${r.id}</td>
-        <td>${r.building}</td>
-        <td>${r.floor}</td>
-        <td>${r.unit}</td>
-        <td>${r.type}</td>
-        <td>${r.receiver}</td>
-        <td>${r.count}</td>
-        <td>${r.company||""}</td>
-        <td>${r.note||""}</td>
-      `;
-      tableBody.appendChild(tr);
-    });
-    save();
-  }
-
-  // ================== 新增紀錄 ==================
-  form.addEventListener("submit", e=>{
-    e.preventDefault();
-    // 基本驗證
-    if (!buildingSel.value || !floorSel.value || !unitSel.value){
-      status.textContent = "⚠️ 住址未完整（棟 / 樓 / 戶）";
-      status.style.color = "#ef4444";
-      return;
-    }
-    const now = new Date();
-    const rec = {
-      id: counter++,
-      day: todayKey(now),
-      time: now.toLocaleString(),
-      building: buildingSel.value,
-      floor: floorSel.value,
-      unit: unitSel.value,
-      type: document.getElementById("type").value,
-      receiver: document.getElementById("receiver").value.trim(),
-      count: parseInt(document.getElementById("count").value||"1",10),
-      company: document.getElementById("company").value.trim(),
-      note: document.getElementById("note").value.trim()
-    };
-    records.push(rec);
     render();
-    form.reset();
-    // 重置表單下拉狀態
-    initFormSelectors();
 
-    status.textContent = "✅ 已新增";
-    status.style.color = "#16a34a";
-    setTimeout(()=> status.textContent="", 1500);
-  });
-
-  // ================== 匯出 CSV ==================
-  function exportCSV(data, filename){
-    if (!data.length){ alert("尚無資料"); return; }
-    const header = ["時間","流水號","棟別","樓層","戶號","貨件類型","收件人","件數","貨運公司","備註"];
-    const rows = [header.join(",")];
-    const esc = s => `"${String(s??"").replace(/"/g,'""')}"`;
-    data.forEach(r=>{
-      rows.push([r.time,r.id,r.building,r.floor,r.unit,r.type,r.receiver,r.count,r.company||"",r.note||""].map(esc).join(","));
+    // 新增紀錄
+    form.addEventListener("submit",e=>{
+      e.preventDefault();
+      const now=new Date();
+      const rec={
+        id:counter,
+        time:now.toLocaleString(),
+        building:buildingSel.value,
+        floor:floorSel.value,
+        unit:unitSel.value,
+        type:document.getElementById("type").value,
+        receiver:document.getElementById("receiver").value,
+        count:document.getElementById("count").value,
+        company:document.getElementById("company").value,
+        note:document.getElementById("note").value
+      };
+      if(records.length>=500) records.shift(); // 超過500刪最舊
+      records.push(rec);
+      counter = counter%500+1;
+      render();
+      form.reset();
     });
-    const blob = new Blob([rows.join("\n")], {type:"text/csv;charset=utf-8;"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = filename;
-    a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href), 500);
-  }
 
-  document.getElementById("exportToday").addEventListener("click", ()=>{
-    const today = todayKey();
-    exportCSV(records.filter(r=> r.day===today), `SRL_today_${today}.csv`);
-  });
-  document.getElementById("exportAll").addEventListener("click", ()=>{
-    exportCSV(records, "SRL_all.csv");
-  });
-  document.getElementById("clearAll").addEventListener("click", ()=>{
-    if (!confirm("確定清除所有紀錄？")) return;
-    records = []; counter = 1; save(); render();
-  });
+    // 匯出 CSV
+    function exportCSV(data,filename){
+      let csv="時間,流水號,棟別,樓層,戶號,貨件類型,收件人,件數,貨運公司,備註\n";
+      data.forEach(r=> csv+=[r.time,r.id,r.building,r.floor,r.unit,r.type,r.receiver,r.count,r.company,r.note].join(",")+"\n");
+      let blob=new Blob([csv],{type:"text/csv"});
+      let url=URL.createObjectURL(blob);
+      let a=document.createElement("a"); a.href=url; a.download=filename; a.click();
+      URL.revokeObjectURL(url);
+    }
+    document.getElementById("exportToday").onclick=()=>{
+      const today=new Date().toLocaleDateString();
+      exportCSV(records.filter(r=>r.time.startsWith(today)),"today.csv");
+    };
+    document.getElementById("exportAll").onclick=()=>exportCSV(records,"all.csv");
 
-  // ================== 啟動 ==================
-  initFormSelectors();
-  initFilterSelectors();
-  render();
-</script>
+    // 依住址搜尋
+    document.getElementById("searchBtn").onclick=()=>{
+      const b=buildingSel.value,f=floorSel.value,u=unitSel.value;
+      render(records.filter(r=>r.building===b && r.floor===f && r.unit===u));
+    };
+
+    // 清空
+    document.getElementById("clearAll").onclick=()=>{
+      if(confirm("確定清除所有紀錄？")){records=[];counter=1;render();}
+    };
+  </script>
 </body>
 </html>
