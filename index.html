@@ -1,100 +1,131 @@
-<!DOCTYPE html><html lang="zh-Hant"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>SimpleReceiveLite v3 ✔︎ Clean Build</title>
-<style>
-:root{--bg:#0f172a;--panel:#0b1220;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--accent:#22c55e;--danger:#ef4444}
-html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,"PingFang TC","Microsoft JhengHei",sans-serif}
-.wrap{max-width:1000px;margin:24px auto;padding:16px}
-h1{margin:0 0 8px;font-size:22px}
-.sub{color:var(--muted);font-size:13px;margin-bottom:12px}
-.tabs{display:flex;gap:8px;margin-bottom:12px}
-.tab{padding:8px 12px;border-radius:999px;border:1px solid #334155;background:#0b1220;color:#cbd5e1;cursor:pointer}
-.tab.active{background:var(--accent);color:#052e12;border-color:#16a34a}
-.card{background:var(--card);border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-label{display:block;font-size:13px;color:var(--muted);margin:6px 0}
-input,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #334155;background:var(--panel);color:var(--text)}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.btn{padding:8px 12px;border:0;border-radius:10px;background:#334155;color:#fff;cursor:pointer}
-.primary{background:var(--accent);color:#052e12;font-weight:700}
-.danger{background:var(--danger)}
-table{width:100%;border-collapse:collapse}
-th,td{padding:8px;border-bottom:1px solid #243244;text-align:left;font-size:13px}
-.pill{font-size:12px;color:var(--muted)}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:16px}
-.modal.show{display:flex}
-.box{background:#111827;border-radius:14px;padding:14px;max-width:900px;width:100%}
-canvas{width:100%;height:220px;background:#0b1220;border:1px dashed #334155;border-radius:10px;touch-action:none}
-.banner{padding:8px;border:1px dashed #22c55e;border-radius:10px;margin-bottom:8px;color:#86efac}
-</style></head><body>
-<div class="wrap">
-  <h1>SimpleReceiveLite v3 ✔︎ Clean Build</h1>
-  <div class="banner">版本檢查用（看到這行＝你正在用「新的 v3」）</div>
-  <div class="sub">住址預載：<b>甲/乙/丙/丁/戊/己 × 1–14樓 × 每樓之1/之2</b> · 本機儲存（localStorage） · 可匯出 CSV。</div>
-  <div class="tabs">
-    <button class="tab active" data-tab="add">📦 新增</button>
-    <button class="tab" data-tab="pending">📥 待簽收</button>
-    <button class="tab" data-tab="signed">📤 已簽收</button>
-  </div>
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>SimpleReceiveLite v3</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #2c3e50; }
+    label { display: block; margin-top: 10px; }
+    select, input { padding: 5px; margin-top: 5px; width: 200px; }
+    button { margin-top: 15px; padding: 8px 15px; }
+    table { border-collapse: collapse; margin-top: 20px; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
+    th { background: #f8f8f8; }
+  </style>
+</head>
+<body>
+  <h1>📦 SimpleReceiveLite v3</h1>
 
-  <section id="tab-add" class="card">
-    <div class="grid">
-      <div><label>棟別</label><select id="bld"></select></div>
-      <div><label>樓層</label><select id="floor"></select></div>
-      <div><label>戶別</label><select id="unit"></select></div>
-    </div>
-    <div class="grid2" style="margin-top:10px">
-      <div><label>收件人</label><input id="recipient" placeholder="住戶姓名"/></div>
-      <div><label>件別</label><select id="category"><option>包裹</option><option>掛號</option></select></div>
-      <div><label>貨運公司</label><input id="courier" placeholder="黑貓/郵局/全家…"/></div>
-      <div><label>件數</label><input id="qty" type="number" min="1" value="1"/></div>
-      <div style="grid-column:1/-1"><label>備註</label><input id="note" placeholder="擺放位置或備註"/></div>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <button class="btn primary" id="addBtn">加入待簽收</button>
-      <span class="pill" id="pendingCount">0 待簽收</span>
-    </div>
-  </section>
+  <form id="receiveForm">
+    <label>棟別：
+      <select id="building" required>
+        <option value="">請選擇</option>
+        <option value="47">甲棟 (47)</option>
+        <option value="47-7">乙棟 (47-7)</option>
+        <option value="47-6">丙棟 (47-6)</option>
+        <option value="47-5">丁棟 (47-5)</option>
+        <option value="47-3">戊棟 (47-3)</option>
+        <option value="47-1">己棟 (47-1)</option>
+      </select>
+    </label>
 
-  <div style="height:10px"></div>
+    <label>樓層：
+      <select id="floor" required>
+        <option value="">請選擇</option>
+      </select>
+    </label>
 
-  <section id="tab-pending" class="card" style="display:none">
-    <div class="row" style="justify-content:space-between;margin-bottom:8px">
-      <input id="qPending" placeholder="搜尋：住址 / 收件人 / 貨運 / 件別" style="flex:1;margin-right:8px"/>
-      <button class="btn" id="exportPending">匯出CSV（待簽收）</button>
-    </div>
-    <table><thead><tr><th>#</th><th>時間</th><th>住址</th><th>件別</th><th>收件人</th><th>貨運</th><th>件數</th><th>備註</th><th>動作</th></tr></thead>
-      <tbody id="tbPending"></tbody></table>
-  </section>
+    <label>戶號：
+      <select id="unit" required>
+        <option value="">請選擇</option>
+      </select>
+    </label>
 
-  <div style="height:10px"></div>
+    <label>貨件類型：
+      <select id="type" required>
+        <option value="">請選擇</option>
+        <option value="包裹">包裹</option>
+        <option value="掛號">掛號</option>
+      </select>
+    </label>
 
-  <section id="tab-signed" class="card" style="display:none">
-    <div class="row" style="justify-content:space-between;margin-bottom:8px">
-      <input id="qSigned" placeholder="搜尋：住址 / 收件人 / 貨運 / 簽收人 / 件別" style="flex:1;margin-right:8px"/>
-      <button class="btn" id="exportSigned">匯出CSV（已簽收）</button>
-    </div>
-    <table><thead><tr><th>#</th><th>收貨時間</th><th>住址</th><th>件別</th><th>收件人</th><th>貨運</th><th>件數</th><th>備註</th><th>簽收人</th><th>簽收時間</th><th>簽名</th><th>動作</th></tr></thead>
-      <tbody id="tbSigned"></tbody></table>
-  </section>
-</div>
+    <button type="submit">新增紀錄</button>
+  </form>
 
-<div class="modal" id="signModal"><div class="box">
-  <h3 style="margin:0 0 8px">簽收</h3>
-  <div class="grid2">
-    <div><label>簽收人</label><input id="signer"/></div>
-    <div><label>件數確認</label><input id="signQty" type="number" min="1"/></div>
-  </div>
-  <label style="margin-top:8px">簽名</label>
-  <canvas id="sig" width="880" height="220"></canvas>
-  <div class="row" style="margin-top:8px;justify-content:flex-end">
-    <button class="btn" id="clearSig">清除</button>
-    <button class="btn danger" id="cancelSign">取消</button>
-    <button class="btn primary" id="confirmSign">確認</button>
-  </div>
-</div></div>
+  <table id="recordTable">
+    <thead>
+      <tr>
+        <th>流水號</th>
+        <th>棟別</th>
+        <th>樓層</th>
+        <th>戶號</th>
+        <th>貨件類型</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
-<script>
-(()=>{const $=e=>document.getElementById(e),pad=e=>String(e).padStart(2,"0"),nowISO=()=>{const e=new Date;return`${e.getFullYear()}-${pad(e.getMonth()+1)}-${pad(e.getDate())} ${pad(e.getHours())}:${pad(e.getMinutes())}:${pad(e.getSeconds())}`},t=(e,t)=>{try{return JSON.parse(localStorage.getItem(e)||JSON.stringify(t))}catch(e){return t}},n=(e,t)=>localStorage.setItem(e,JSON.stringify(t)),P="sr_lite_v3_pending",S="sr_lite_v3_signed",B=["甲","乙","丙","丁","戊","己"],F=Array.from({length:14},((e,t)=>t+1)),U=["之1","之2"];function a(e,t,n=(e=>e)){e.innerHTML="",t.forEach((t=>{const o=document.createElement("option");o.value=t,o.textContent=n(t),e.appendChild(o)}))}function r(){return`${$("bld").value} ${$("floor").value}樓${$("unit").value}`}a($("bld"),B),a($("floor"),F,(e=>`${e}樓`)),a($("unit"),U),$("addBtn").onclick=()=>{const e=$("recipient").value.trim();if(!e)return alert("請填收件人");const a=t(P,[]);a.push({id:crypto&&crypto.randomUUID?crypto.randomUUID():String(Date.now()),created_at:nowISO(),address:r(),category:$("category").value,recipient:e,courier:$("courier").value.trim(),qty:parseInt($("qty").value||"1",10),note:$("note").value.trim()}),n(P,a),$("recipient").value="",$("courier").value="",$("qty").value=1,$("note").value="",o(),d("pending")};const o=()=>{const e=t(P,[]),n=($("qPending").value||"").toLowerCase(),a=e.filter((e=>!n||[e.address,e.category,e.recipient,e.courier].join(" ").toLowerCase().includes(n)));$("tbPending").innerHTML="",a.forEach(((t,n)=>{const a=document.createElement("tr");a.innerHTML=`<td>${n+1}</td><td>${t.created_at}</td><td>${t.address}</td><td>${t.category}</td><td>${t.recipient}</td><td>${t.courier}</td><td>${t.qty}</td><td>${t.note}</td><td>\n        <button class="btn primary" data-act="sign" data-id="${t.id}">簽收</button>\n        <button class="btn danger" data-act="del" data-id="${t.id}">刪除</button></td>`,$("tbPending").appendChild(a)})),$("pendingCount").textContent=`${e.length} 待簽收`};$("qPending").addEventListener("input",o),$("tbPending").addEventListener("click",(e=>{const a=e.target.closest("button");if(!a)return;const r=a.getAttribute("data-id"),s=t(P,[]),l=s.findIndex((e=>e.id===r));"del"===a.dataset.act&&l>-1?confirm("刪除此待簽收？")&&(s.splice(l,1),n(P,s),o()):"sign"===a.dataset.act&&l>-1&&c(r,s[l].qty)})),$("exportPending").onclick=(()=>{((e,t)=>{const n=Object.keys(e[0]||{id:"",created_at:"",address:"",category:"",recipient:"",courier:"",qty:"",note:"",signer:"",signed_at:"",signature:""}),a=[n.join(",")],r=e=>`"${String(e??"").replace(/"/g,'""')}"`;e.forEach((e=>a.push(n.map((t=>r(e[t])).join(","))));const o=new Blob([a.join("\n")],{type:"text/csv;charset=utf-8;"}),d=document.createElement("a"),c=URL.createObjectURL(o);d.href=c,d.download=t,d.click(),setTimeout((()=>URL.revokeObjectURL(c)),1e3)}))(t(P,[]),"pending.csv")});const i=()=>{const e=t(S,[]),n=($("qSigned").value||"").toLowerCase(),a=e.filter((e=>!n||[e.address,e.category,e.recipient,e.courier,e.signer].join(" ").toLowerCase().includes(n)));$("tbSigned").innerHTML="",a.forEach(((t,n)=>{const a=document.createElement("tr");a.innerHTML=`<td>${n+1}</td><td>${t.created_at}</td><td>${t.address}</td><td>${t.category}</td><td>${t.recipient}</td><td>${t.courier}</td><td>${t.qty}</td><td>${t.note}</td><td>${t.signer}</td><td>${t.signed_at}</td><td>`+(t.signature?`<a class="btn" href="${t.signature}" download="sign_${t.id}.png">下載</a>`:"—")+`</td>\n        <td><button class="btn danger" data-del="${t.id}">刪除</button></td>`,$("tbSigned").appendChild(a)}))};$("qSigned").addEventListener("input",i),$("tbSigned").addEventListener("click",(e=>{const a=e.target.getAttribute("data-del");if(!a)return;const r=t(S,[]),o=r.findIndex((e=>e.id===a));o>-1&&confirm("刪除此已簽收？")&&(r.splice(o,1),n(S,r),i())})),$("exportSigned").onclick=(()=>{((e,t)=>{const n=Object.keys(e[0]||{id:"",created_at:"",address:"",category:"",recipient:"",courier:"",qty:"",note:"",signer:"",signed_at:"",signature:""}),a=[n.join(",")],r=e=>`"${String(e??"").replace(/"/g,'""')}"`;e.forEach((e=>a.push(n.map((t=>r(e[t])).join(","))));const o=new Blob([a.join("\n")],{type:"text/csv;charset=utf-8;"}),d=document.createElement("a"),c=URL.createObjectURL(o);d.href=c,d.download=t,d.click(),setTimeout((()=>URL.revokeObjectURL(c)),1e3)}))(t(S,[]),"signed.csv")});const d=e=>{[...document.querySelectorAll(".tab")].forEach((t=>t.classList.toggle("active",t.dataset.tab===e))),["add","pending","signed"].forEach((t=>document.getElementById("tab-"+t).style.display=t===e?"block":"none")),"pending"===e&&o(),"signed"===e&&i()};[...document.querySelectorAll(".tab")].forEach((e=>e.addEventListener("click",(()=>d(e.dataset.tab)))));const s=$("signModal"),l=$("sig"),g=l.getContext("2d");let u=!1,m=null,h=null;function v(){g.fillStyle="#0b1220",g.fillRect(0,0,l.width,l.height),g.strokeStyle="#e5e7eb",g.lineWidth=3,g.lineCap="round"}function c(e,t){h=e,$("signer").value="",$("signQty").value=t||1,v(),s.classList.add("show")}function y(e){const t=l.getBoundingClientRect(),n=(e.touches?e.touches[0].clientX:e.clientX)-t.left,a=(e.touches?e.touches[0].clientY:e.clientY)-t.top;return{x:n*(l.width/t.width),y:a*(l.height/t.height)}}v(),l.addEventListener("mousedown",(e=>{u=!0,m=y(e),e.preventDefault()})),l.addEventListener("mousemove",(e=>{if(!u)return;const t=y(e);g.beginPath(),g.moveTo(m.x,m.y),g.lineTo(t.x,t.y),g.stroke(),m=t,e.preventDefault()})),window.addEventListener("mouseup",(()=>{u=!1,m=null})),l.addEventListener("touchstart",(e=>{u=!0,m=y(e),e.preventDefault()}),{passive:!1}),l.addEventListener("touchmove",(e=>{if(!u)return;const t=y(e);g.beginPath(),g.moveTo(m.x,m.y),g.lineTo(t.x,t.y),g.stroke(),m=t,e.preventDefault()}),{passive:!1}),l.addEventListener("touchend",(()=>{u=!1,m=null})),$("clearSig").onclick=v,$("cancelSign").onclick=(()=>{s.classList.remove("show")}),$("confirmSign").onclick=(()=>{const e=$("signer").value.trim();if(!e)return alert("請填簽收人");const a=l.toDataURL("image/png"),o=t(P,[]),d=o.findIndex((e=>e.id===h));if(-1===d)return;const c=o[d];o.splice(d,1),n(P,o);const r=t(S,[]);r.push({...c,signer:e,signed_at:nowISO(),qty:parseInt($("signQty").value||c.qty,10),signature:a}),n(S,r),s.classList.remove("show"),o(),i(),d("signed")}),o(),i()})();
-</script></body></html>
+  <script>
+    const floorSelect = document.getElementById("floor");
+    const unitSelect = document.getElementById("unit");
+    const buildingSelect = document.getElementById("building");
+    const form = document.getElementById("receiveForm");
+    const tbody = document.querySelector("#recordTable tbody");
+    let serial = 1;
+
+    // 預載樓層 1~14
+    function loadFloors() {
+      floorSelect.innerHTML = '<option value="">請選擇</option>';
+      for (let i = 1; i <= 14; i++) {
+        const opt = document.createElement("option");
+        opt.value = i + "樓";
+        opt.textContent = i + "樓";
+        floorSelect.appendChild(opt);
+      }
+    }
+
+    // 預載戶號
+    function loadUnits(building) {
+      unitSelect.innerHTML = '<option value="">請選擇</option>';
+
+      let maxUnit = 8; // 預設 1~8
+      if (["47-3", "47-5", "47-7", "47"].includes(building)) {
+        maxUnit = 2; // 只有之1、之2
+      } else if (building === "47-6") {
+        maxUnit = 7; // 之1~之7
+      } else if (building === "47-1") {
+        maxUnit = 8; // 之1~之8
+      }
+
+      for (let i = 1; i <= maxUnit; i++) {
+        const opt = document.createElement("option");
+        opt.value = "之" + i;
+        opt.textContent = "之" + i;
+        unitSelect.appendChild(opt);
+      }
+    }
+
+    // 棟別改變 → 戶號更新
+    buildingSelect.addEventListener("change", e => {
+      loadFloors();
+      if (e.target.value) loadUnits(e.target.value);
+    });
+
+    // 表單提交
+    form.addEventListener("submit", e => {
+      e.preventDefault();
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${serial++}</td>
+        <td>${buildingSelect.value}</td>
+        <td>${floorSelect.value}</td>
+        <td>${unitSelect.value}</td>
+        <td>${document.getElementById("type").value}</td>
+      `;
+      tbody.appendChild(row);
+      form.reset();
+    });
+  </script>
+</body>
+</html>
