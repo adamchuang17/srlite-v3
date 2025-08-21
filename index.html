@@ -34,21 +34,24 @@
   canvas{width:100%;height:220px;background:#0b1220;border:1px dashed #334155;border-radius:10px;touch-action:none}
   .muted{color:#94a3b8}
   footer{margin:14px 0 8px;text-align:center;color:#94a3b8;font-size:12px}
-  /* 列印樣式（A4） */
+
+  /* 列印樣式（A4，只印待簽收清單） */
   @media print{
     body{background:#fff;color:#000}
-    .tabs,.toolbar,.sub,button,.modal{display:none!important}
+    .tabs,.sub,#tab-add,#tab-signed,.modal,footer,.toolbar .row:nth-child(2) button:not(#printPending){display:none!important}
     .card{box-shadow:none;border:0;padding:0}
     table{font-size:12px}
     th,td{border:1px solid #999}
     h1{font-size:18px;color:#000;margin:0 0 6px}
+    #printHeader{display:block!important;margin:0 0 8px}
   }
+  #printHeader{display:none;color:#cbd5e1}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>📦 SimpleReceiveLite v4</h1>
-  <div class="sub">新增 → <b>住址三欄連動</b>（可只選 1～2 欄搜尋）→ 待簽收 → <b>簽收（簽名＋件數）</b> → 已簽收；流水號<b>1–500循環</b>；<b>住址名冊</b>記住收件人與貨運公司；CSV 匯出；A4 列印。</div>
+  <div class="sub">新增 → <b>住址三欄連動</b>（可只選 1～2 欄搜尋）→ 待簽收 → <b>簽收（簽名＋件數）</b> → 已簽收；流水號<b>1–500循環</b>；<b>住址名冊</b>記住收件人與貨運公司；CSV 匯出；<b>列印只印待簽收</b>。</div>
 
   <div class="tabs">
     <button class="tab active" data-tab="add">➕ 新增</button>
@@ -91,6 +94,11 @@
 
   <!-- 待簽收 -->
   <section id="tab-pending" class="card" style="display:none">
+    <div id="printHeader">
+      <div>待簽收清單（列印）</div>
+      <div id="printMeta" style="font-size:12px;color:#64748b"></div>
+    </div>
+
     <div class="toolbar">
       <div class="row" style="flex:1;gap:8px">
         <select id="bldF" title="棟別"></select>
@@ -102,6 +110,7 @@
         <button class="btn" id="exportPendingToday">匯出CSV（今日未簽收）</button>
         <button class="btn" id="exportPendingOverdue">匯出CSV（逾期3天未簽收）</button>
         <button class="btn info" id="exportPending">匯出CSV（待簽收-累計）</button>
+        <button class="btn primary" id="printPending" title="只會列印本頁的待簽收表">🖨 列印（待簽收）</button>
         <span class="pill" id="pendingCount2">0 筆</span>
       </div>
     </div>
@@ -157,8 +166,8 @@
 
 <script>
 (()=>{
-// ===== 版本號（修改這裡即可） =====
-const VERSION = 'v4.1.0';
+// ===== 版本號（可自行調整） =====
+const VERSION = 'v4.1.1';
 
 // ===== 小工具 =====
 const $=id=>document.getElementById(id);
@@ -168,7 +177,7 @@ const load=(k,f)=>{try{return JSON.parse(localStorage.getItem(k)||JSON.stringify
 const save=(k,v)=> localStorage.setItem(k, JSON.stringify(v));
 const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 function dayKey(d=new Date()){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
-function dayFromISO(s){return (s||'').slice(0,10);} // "YYYY-MM-DD HH:mm:ss" → "YYYY-MM-DD"
+function dayFromISO(s){return (s||'').slice(0,10);}
 const addressKey=(b,f,u)=> `${b} ${f}${u}`;
 
 // ===== LocalStorage Keys =====
@@ -185,8 +194,8 @@ function fill(sel,arr,{placeholder}={}){ sel.innerHTML=''; const o0=document.cre
 function fillAll(sel,arr){ sel.innerHTML=''; const a=document.createElement('option');a.value='';a.textContent='全部';sel.appendChild(a); arr.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o);}); }
 
 // ===== 名冊 =====
-function loadBook(){return load(BOOK,{});}
-function saveBook(b){save(BOOK,b);}
+function loadBook(){return load(BOOK,{})}
+function saveBook(b){save(BOOK,b)}
 function uniq(arr,cap=50){const s=new Set();const out=[];arr.forEach(x=>{const v=String(x||'').trim();if(!v)return;const k=v.toLowerCase();if(!s.has(k)){s.add(k);out.push(v);}});return out.slice(0,cap);}
 function updateList(datalistId,arr){const dl=$(datalistId);dl.innerHTML=''; uniq(arr).forEach(v=>{const o=document.createElement('option');o.value=v;dl.appendChild(o);});}
 function refreshAddressSuggestions(){
@@ -283,6 +292,14 @@ function renderPending(){
   });
   $('pendingCount').textContent=`${list.length} 待簽收`;
   $('pendingCount2').textContent=`${rows.length} 筆`;
+
+  // 列印抬頭資訊
+  const meta = [];
+  if (b) meta.push(`棟：${b}`);
+  if (f) meta.push(`樓：${f}`);
+  if (u) meta.push(`戶：${u}`);
+  meta.push(`列印時間：${nowISO()}`);
+  $('printMeta').textContent = meta.join(' ｜ ');
 }
 tbPending.addEventListener('click',e=>{
   const btn=e.target.closest('button'); if(!btn) return;
@@ -294,6 +311,7 @@ tbPending.addEventListener('click',e=>{
 $('exportPending').onclick=()=> exportCSV(load(PENDING,[]),'pending_all.csv');
 $('exportPendingToday').onclick=()=>{ const t=dayKey(); const a=load(PENDING,[]).filter(r=>dayFromISO(r.created_at)===t); exportCSV(a,`pending_today_${t}.csv`); };
 $('exportPendingOverdue').onclick=()=>{ const a=load(PENDING,[]); const d=new Date(); d.setDate(d.getDate()-3); const over=a.filter(r=> new Date((r.created_at||'').replace(' ','T'))<d ); exportCSV(over,`pending_over3days_${dayKey()}.csv`); };
+$('printPending').onclick=()=>{ switchTab('pending'); window.print(); };
 
 // ===== 已簽收 =====
 const tbSigned=$('tbSigned');
