@@ -4,18 +4,23 @@
   <meta charset="UTF-8">
   <title>SimpleReceiveLite v3</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h1 { color: #2c3e50; }
+    body { font-family: Arial, sans-serif; margin: 20px; color:#0f172a }
+    h1 { color: #2c3e50; margin-bottom:8px }
     label { display: block; margin-top: 10px; }
-    select, input { padding: 5px; margin-top: 5px; width: 200px; }
-    button { margin-top: 15px; padding: 8px 15px; }
-    table { border-collapse: collapse; margin-top: 20px; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-    th { background: #f8f8f8; }
+    select, input { padding: 6px 8px; margin-top: 5px; width: 220px; }
+    button { margin-top: 12px; padding: 8px 14px; border:0; border-radius:6px; background:#22c55e; color:#fff; cursor:pointer }
+    button.secondary { background:#0ea5e9 }
+    button.warn { background:#ef4444 }
+    table { border-collapse: collapse; margin-top: 18px; width: 100%; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size:14px }
+    th { background: #f8fafc; }
+    .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+    .tip{color:#64748b; font-size:12px}
   </style>
 </head>
 <body>
   <h1>📦 SimpleReceiveLite v3</h1>
+  <div class="tip">（已內建 CSV 匯出：今日 / 全部）</div>
 
   <form id="receiveForm">
     <label>棟別：
@@ -50,31 +55,83 @@
       </select>
     </label>
 
+    <label>收件人：
+      <input id="receiver" required placeholder="住戶姓名" />
+    </label>
+
+    <label>件數：
+      <input id="count" type="number" min="1" value="1" required />
+    </label>
+
+    <label>貨運公司：
+      <input id="company" placeholder="黑貓 / 郵局 / 超商 …" />
+    </label>
+
+    <label>備註：
+      <input id="note" placeholder="擺放位置或備註" />
+    </label>
+
     <button type="submit">新增紀錄</button>
+    <span id="status" class="tip"></span>
   </form>
+
+  <div class="toolbar">
+    <button id="exportToday" class="secondary">下載今日紀錄 (CSV)</button>
+    <button id="exportAll" class="secondary">下載全部紀錄 (CSV)</button>
+    <button id="clearAll" class="warn" title="僅清除本機保存的表格資料">清空紀錄</button>
+  </div>
 
   <table id="recordTable">
     <thead>
       <tr>
+        <th>時間</th>
         <th>流水號</th>
         <th>棟別</th>
         <th>樓層</th>
         <th>戶號</th>
         <th>貨件類型</th>
+        <th>收件人</th>
+        <th>件數</th>
+        <th>貨運公司</th>
+        <th>備註</th>
       </tr>
     </thead>
     <tbody></tbody>
   </table>
 
   <script>
+    // --------- DOM ----------
     const floorSelect = document.getElementById("floor");
     const unitSelect = document.getElementById("unit");
     const buildingSelect = document.getElementById("building");
     const form = document.getElementById("receiveForm");
     const tbody = document.querySelector("#recordTable tbody");
-    let serial = 1;
+    const status = document.getElementById("status");
+    const btnToday = document.getElementById("exportToday");
+    const btnAll = document.getElementById("exportAll");
+    const btnClear = document.getElementById("clearAll");
 
-    // 預載樓層 1~14
+    // --------- Storage ----------
+    const KEY = "srlite_v3_records";
+    let records = load();
+
+    function load() {
+      try { return JSON.parse(localStorage.getItem(KEY) || "[]"); }
+      catch { return []; }
+    }
+    function save() { localStorage.setItem(KEY, JSON.stringify(records)); }
+
+    function nowStr() {
+      const d = new Date();
+      const pad = n => String(n).padStart(2,"0");
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    }
+    function todayKey(d=new Date()) {
+      const pad = n => String(n).padStart(2,"0");
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    }
+
+    // --------- Floors 1~14 ----------
     function loadFloors() {
       floorSelect.innerHTML = '<option value="">請選擇</option>';
       for (let i = 1; i <= 14; i++) {
@@ -85,18 +142,26 @@
       }
     }
 
-    // 預載戶號
+    // --------- Units（依棟別規則） ----------
+    // 若你要統一「1~8 戶」，把下方的 switch 改為 1..8 即可
     function loadUnits(building) {
       unitSelect.innerHTML = '<option value="">請選擇</option>';
-
-      let maxUnit = 8; // 預設 1~8
-      if (["47-3", "47-5", "47-7", "47"].includes(building)) {
-        maxUnit = 2; // 只有之1、之2
-      } else if (building === "47-6") {
-        maxUnit = 7; // 之1~之7
-      } else if (building === "47-1") {
-        maxUnit = 8; // 之1~之8
+      // 預設 1~8（純數字戶號）
+      let useNumeric = false; // 改成 true ＝顯示 1~8 戶；false ＝依現有規則 (之X)
+      if (useNumeric) {
+        for (let i = 1; i <= 8; i++) {
+          const opt = document.createElement("option");
+          opt.value = i + "戶";
+          opt.textContent = i + "戶";
+          unitSelect.appendChild(opt);
+        }
+        return;
       }
+      // 現行：依既有規則（之X）
+      let maxUnit = 8;
+      if (["47", "47-3", "47-5", "47-7"].includes(building)) maxUnit = 2; // 之1～之2
+      else if (building === "47-6") maxUnit = 7; // 之1～之7
+      else if (building === "47-1") maxUnit = 8; // 之1～之8
 
       for (let i = 1; i <= maxUnit; i++) {
         const opt = document.createElement("option");
@@ -106,25 +171,111 @@
       }
     }
 
-    // 棟別改變 → 戶號更新
+    // 事件：棟別改變 → 樓層(1~14) & 戶號更新
     buildingSelect.addEventListener("change", e => {
       loadFloors();
       if (e.target.value) loadUnits(e.target.value);
+      else unitSelect.innerHTML = '<option value="">請選擇</option>';
     });
 
-    // 表單提交
+    // 初始：若使用者還沒選棟別，先空白
+    floorSelect.innerHTML = '<option value="">請選擇</option>';
+    unitSelect.innerHTML  = '<option value="">請選擇</option>';
+
+    // --------- Render table ----------
+    function render() {
+      tbody.innerHTML = "";
+      records.forEach((r, idx) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${r.time}</td>
+          <td>${String(idx+1).padStart(4,'0')}</td>
+          <td>${r.building}</td>
+          <td>${r.floor}</td>
+          <td>${r.unit}</td>
+          <td>${r.type}</td>
+          <td>${r.receiver}</td>
+          <td>${r.count}</td>
+          <td>${r.company||""}</td>
+          <td>${r.note||""}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+    render();
+
+    // --------- Submit ----------
     form.addEventListener("submit", e => {
       e.preventDefault();
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${serial++}</td>
-        <td>${buildingSelect.value}</td>
-        <td>${floorSelect.value}</td>
-        <td>${unitSelect.value}</td>
-        <td>${document.getElementById("type").value}</td>
-      `;
-      tbody.appendChild(row);
+      const building = buildingSelect.value;
+      const floor = floorSelect.value;
+      const unit = unitSelect.value;
+      const type = document.getElementById("type").value;
+      const receiver = document.getElementById("receiver").value.trim();
+      const count = parseInt(document.getElementById("count").value || "1", 10);
+      const company = document.getElementById("company").value.trim();
+      const note = document.getElementById("note").value.trim();
+
+      if (!building || !floor || !unit || !type || !receiver || count < 1) {
+        status.textContent = "⚠️ 請完整填寫（棟/樓/戶/類型/收件人/件數）";
+        status.style.color = "#ef4444";
+        return;
+      }
+
+      const rec = {
+        time: nowStr(),
+        day: todayKey(),
+        building, floor, unit, type, receiver, count, company, note
+      };
+      records.push(rec);
+      save();
+      render();
+      status.textContent = "✅ 已加入";
+      status.style.color = "#16a34a";
       form.reset();
+      // 重置為未選狀態
+      floorSelect.innerHTML = '<option value="">請選擇</option>';
+      unitSelect.innerHTML  = '<option value="">請選擇</option>';
+    });
+
+    // --------- CSV export ----------
+    function toCSV(arr) {
+      if (!arr.length) return "";
+      const header = Object.keys(arr[0]);
+      const esc = s => `"${String(s??"").replace(/"/g,'""')}"`;
+      const rows = [header.join(",")];
+      arr.forEach(o => rows.push(header.map(k => esc(o[k])).join(",")));
+      return rows.join("\n");
+    }
+    function downloadCSV(rows, filename) {
+      const blob = new Blob([rows], {type:"text/csv;charset=utf-8;"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+    }
+
+    btnToday.addEventListener("click", () => {
+      const today = todayKey();
+      const data = records.filter(r => r.day === today);
+      const csv = toCSV(data);
+      if (!csv) { alert("今天尚無紀錄"); return; }
+      downloadCSV(csv, `SRL_v3_today_${today}.csv`);
+    });
+
+    btnAll.addEventListener("click", () => {
+      const csv = toCSV(records);
+      if (!csv) { alert("尚無紀錄"); return; }
+      downloadCSV(csv, `SRL_v3_all.csv`);
+    });
+
+    // --------- Clear (optional) ----------
+    btnClear.addEventListener("click", () => {
+      if (!confirm("確定要清空所有本機紀錄？")) return;
+      records = [];
+      save();
+      render();
     });
   </script>
 </body>
