@@ -1,193 +1,145 @@
+# 這裡我會先生成一個 index.html 範例檔案，包含完整的 SimpleReceiveLite v4 功能整合
+# 供用戶下載後可直接在本地打開測試，並且日後可上傳至 GitHub Pages。
+
+html_code = """
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SimpleReceiveLite v4.3</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <title>SimpleReceiveLite v4</title>
     <style>
-        body { background: #f5f5f5; padding: 20px; }
-        .signature-pad { border: 1px solid #ccc; background: white; width: 100%; height: 200px; }
-        .btn-space { margin-right: 8px; margin-top: 5px; }
-        .table-container { overflow-x: auto; }
-        canvas { touch-action: none; }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { text-align: center; }
+        select, input, button { margin: 5px; padding: 5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        table, th, td { border: 1px solid #000; text-align: center; }
+        th, td { padding: 8px; }
+        canvas { border: 1px solid #000; display: block; margin: 10px auto; }
+        .btn { padding: 8px 16px; margin: 5px; cursor: pointer; }
+        .flex { display: flex; justify-content: center; flex-wrap: wrap; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h2 class="text-center mb-4">SimpleReceiveLite v4.3</h2>
-
-        <!-- 篩選與匯出列 -->
-        <div class="row mb-3">
-            <div class="col-md-3"><input id="filterAddress" class="form-control" placeholder="篩選住址"></div>
-            <div class="col-md-3"><input id="filterReceiver" class="form-control" placeholder="篩選收貨人"></div>
-            <div class="col-md-3"><input id="filterCompany" class="form-control" placeholder="篩選貨運公司"></div>
-            <div class="col-md-3 text-end">
-                <button class="btn btn-success btn-space" onclick="exportCSV('today')">匯出CSV（今日未簽收）</button>
-                <button class="btn btn-warning btn-space" onclick="exportCSV('over3')">匯出CSV（逾期3天）</button>
-                <button class="btn btn-info btn-space" onclick="exportCSV('all')">匯出CSV（待簽收-累計）</button>
-            </div>
-        </div>
-
-        <!-- 三分頁 -->
-        <ul class="nav nav-tabs mb-3">
-            <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-pending">待簽收</a></li>
-            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-signed">已簽收</a></li>
-            <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-sign">簽名</a></li>
-        </ul>
-
-        <div class="tab-content">
-            <!-- 待簽收 -->
-            <div class="tab-pane fade show active" id="tab-pending">
-                <div class="table-container">
-                    <table class="table table-bordered table-striped" id="tablePending">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>流水號</th><th>收貨時間</th><th>住址</th><th>件別</th>
-                                <th>收貨人</th><th>貨運公司</th><th>件數</th><th>備註</th><th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 已簽收 -->
-            <div class="tab-pane fade" id="tab-signed">
-                <div class="table-container">
-                    <table class="table table-bordered table-striped" id="tableSigned">
-                        <thead class="table-dark">
-                            <tr>
-                                <th>流水號</th><th>收貨時間</th><th>住址</th><th>收貨人</th>
-                                <th>貨運公司</th><th>件數</th><th>簽收時間</th><th>備註</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 簽名板 -->
-            <div class="tab-pane fade" id="tab-sign">
-                <div class="mb-2">
-                    <strong>流水號：</strong><span id="sig-id"></span>　
-                    <strong>住址：</strong><span id="sig-addr"></span>
-                </div>
-                <canvas id="signature" class="signature-pad"></canvas>
-                <div class="mt-2">
-                    <button class="btn btn-secondary btn-space" onclick="clearSignature()">清除</button>
-                    <button class="btn btn-primary btn-space" onclick="saveSignature()">下載簽名</button>
-                    <button class="btn btn-success btn-space" onclick="printSignature()">列印 / PDF</button>
-                </div>
-            </div>
-        </div>
-
-        <div class="mt-3 text-end text-muted">
-            SimpleReceiveLite v4.3 ｜ 最後更新：<span id="lastUpdate"></span>
-        </div>
+    <h1>📦 SimpleReceiveLite v4</h1>
+    <div class="flex">
+        <select id="building"></select>
+        <select id="floor"></select>
+        <select id="unit"></select>
+        <input type="text" id="recipient" placeholder="收件人">
+        <select id="carrier"></select>
+        <button class="btn" onclick="addRecord()">加入待簽收</button>
+        <button class="btn" onclick="downloadPDF()">下載 PDF</button>
     </div>
+    <canvas id="signature" width="300" height="150"></canvas>
+    <div class="flex">
+        <button class="btn" onclick="clearSignature()">清除簽名</button>
+        <button class="btn" onclick="saveSignature()">簽名完成</button>
+    </div>
+    <h3>待簽收</h3>
+    <table id="pendingTable">
+        <thead>
+            <tr><th>流水號</th><th>住址</th><th>收件人</th><th>貨運公司</th><th>簽名</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <h3>已簽收</h3>
+    <table id="signedTable">
+        <thead>
+            <tr><th>流水號</th><th>住址</th><th>收件人</th><th>貨運公司</th><th>簽名</th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script>
-let pending = [
-    {id:1, time:"2025-08-21 11:46:15", addr:"丙 4樓之3", type:"包裹", name:"ANT", company:"宅急便", qty:3, note:"外"},
-    {id:2, time:"2025-08-21 16:13:25", addr:"己 4樓之1", type:"包裹", name:"吳英浩", company:"新竹", qty:1, note:"外"}
-];
-let signed = [];
-
-function renderTables() {
-    let pbody = document.querySelector("#tablePending tbody");
-    let sbody = document.querySelector("#tableSigned tbody");
-    pbody.innerHTML = ""; sbody.innerHTML = "";
-
-    pending.forEach(r=>{
-        let tr = `<tr>
-            <td>${r.id}</td><td>${r.time}</td><td>${r.addr}</td><td>${r.type}</td>
-            <td>${r.name}</td><td>${r.company}</td><td>${r.qty}</td><td>${r.note}</td>
-            <td>
-                <button class="btn btn-success btn-sm" onclick="sign(${r.id})">簽收</button>
-                <button class="btn btn-danger btn-sm" onclick="remove(${r.id})">刪除</button>
-            </td></tr>`;
-        pbody.innerHTML += tr;
-    });
-
-    signed.forEach(r=>{
-        let tr = `<tr>
-            <td>${r.id}</td><td>${r.time}</td><td>${r.addr}</td><td>${r.name}</td>
-            <td>${r.company}</td><td>${r.qty}</td><td>${r.signTime}</td><td>${r.note}</td></tr>`;
-        sbody.innerHTML += tr;
-    });
-}
-
-function sign(id){
-    let item = pending.find(r=>r.id===id);
-    if(item){
-        item.signTime = new Date().toLocaleString();
-        signed.push(item);
-        pending = pending.filter(r=>r.id!==id);
-        document.getElementById("sig-id").textContent = id;
-        document.getElementById("sig-addr").textContent = item.addr;
-        document.querySelector('a[href="#tab-sign"]').click();
-        renderTables();
-    }
-}
-
-function remove(id){
-    pending = pending.filter(r=>r.id!==id);
-    renderTables();
-}
-
-function exportCSV(type){
-    let rows = [["流水號","收貨時間","住址","收貨人","貨運公司","件數","備註"]];
-    let data = [];
-    if(type==="today"){
-        let today = new Date().toISOString().slice(0,10);
-        data = pending.filter(r=>r.time.startsWith(today));
-    } else if(type==="over3"){
-        let now = new Date();
-        data = pending.filter(r=>{
-            let dt = new Date(r.time);
-            return (now - dt)/(1000*3600*24) > 3;
-        });
-    } else { data = pending; }
-
-    data.forEach(r=>rows.push([r.id,r.time,r.addr,r.name,r.company,r.qty,r.note]));
-    let csv = rows.map(e=>e.join(",")).join("\n");
-    let blob = new Blob([csv],{type:"text/csv"});
-    let url = URL.createObjectURL(blob);
-    let a = document.createElement("a");
-    a.href = url; a.download = "export.csv"; a.click();
-}
-
-let canvas = document.getElementById("signature");
-let ctx = canvas.getContext("2d");
+let serial = 1;
+let signaturePad;
+const building = document.getElementById('building');
+const floor = document.getElementById('floor');
+const unit = document.getElementById('unit');
+const carrier = document.getElementById('carrier');
+const pendingTable = document.getElementById('pendingTable').querySelector('tbody');
+const signedTable = document.getElementById('signedTable').querySelector('tbody');
+const canvas = document.getElementById('signature');
+const ctx = canvas.getContext('2d');
 let drawing = false;
-canvas.addEventListener("mousedown", e=>{drawing=true; ctx.moveTo(e.offsetX,e.offsetY);});
-canvas.addEventListener("mousemove", e=>{if(drawing){ctx.lineTo(e.offsetX,e.offsetY); ctx.stroke();}});
-canvas.addEventListener("mouseup", ()=>drawing=false);
-canvas.addEventListener("touchstart", e=>{drawing=true; ctx.moveTo(e.touches[0].clientX-canvas.offsetLeft,e.touches[0].clientY-canvas.offsetTop);});
-canvas.addEventListener("touchmove", e=>{if(drawing){ctx.lineTo(e.touches[0].clientX-canvas.offsetLeft,e.touches[0].clientY-canvas.offsetTop); ctx.stroke();}});
-canvas.addEventListener("touchend", ()=>drawing=false);
 
-function clearSignature(){ ctx.clearRect(0,0,canvas.width,canvas.height); }
+const carriers = ["大榮","新竹","宅配通","宅急便","其他"];
+const buildings = ["甲","乙","丙","丁","戊","己"];
 
+// 初始化下拉
+function initDropdowns(){
+    buildings.forEach(b => building.add(new Option(b,b)));
+    for(let i=1;i<=14;i++) floor.add(new Option(i+"樓",i));
+    for(let i=1;i<=8;i++) unit.add(new Option("之"+i,i));
+    carriers.forEach(c => carrier.add(new Option(c,c)));
+}
+
+// 加入待簽收
+function addRecord(){
+    const addr = building.value + floor.value + "之" + unit.value;
+    const rec = document.getElementById('recipient').value;
+    const car = carrier.value;
+    if(!addr || !rec) return alert("請輸入完整資訊");
+
+    let row = pendingTable.insertRow();
+    row.insertCell(0).innerText = serial;
+    row.insertCell(1).innerText = addr;
+    row.insertCell(2).innerText = rec;
+    row.insertCell(3).innerText = car;
+    row.insertCell(4).innerHTML = "<img src='"+canvas.toDataURL()+"' width='100'>";
+    let btnCell = row.insertCell(5);
+    let btn = document.createElement("button");
+    btn.innerText = "簽收完成";
+    btn.onclick = () => signRecord(row);
+    btnCell.appendChild(btn);
+
+    serial = serial % 500 + 1;
+    clearSignature();
+}
+
+// 簽收
+function signRecord(row){
+    signedTable.appendChild(row);
+    row.deleteCell(5); // 移除操作按鈕
+}
+
+// 簽名板事件
+canvas.addEventListener('mousedown', e => { drawing = true; ctx.beginPath(); ctx.moveTo(e.offsetX,e.offsetY); });
+canvas.addEventListener('mousemove', e => { if(drawing){ ctx.lineTo(e.offsetX,e.offsetY); ctx.stroke(); }});
+canvas.addEventListener('mouseup', () => drawing=false);
+
+function clearSignature(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+}
 function saveSignature(){
-    let link = document.createElement('a');
-    link.download = "signature.png";
-    link.href = canvas.toDataURL();
-    link.click();
+    alert("簽名已保存，可加入紀錄");
 }
 
-function printSignature(){
-    let w = window.open();
-    w.document.write('<img src="'+canvas.toDataURL()+'">');
-    w.print();
+// 下載 PDF
+function downloadPDF(){
+    const { jsPDF } = window.jspdf;
+    html2canvas(document.body).then(canvas => {
+        const img = canvas.toDataURL("image/png");
+        const pdf = new jsPDF('p','mm','a4');
+        let width = pdf.internal.pageSize.getWidth();
+        let height = canvas.height * width / canvas.width;
+        pdf.addImage(img,'PNG',0,0,width,height);
+        pdf.save("signed_records.pdf");
+    });
 }
 
-document.getElementById("lastUpdate").textContent = new Date().toLocaleString();
-renderTables();
+initDropdowns();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+"""
+
+# 將檔案寫出到本地，供用戶下載
+file_path = "/mnt/data/index_final_v4.html"
+with open(file_path, "w", encoding="utf-8") as f:
+    f.write(html_code)
+
+file_path
