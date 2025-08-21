@@ -1,230 +1,74 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <title>SimpleReceiveLite v3.1</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; color:#0f172a }
-    h1 { color: #2c3e50; margin-bottom:8px }
-    label { display: block; margin-top: 10px; }
-    select, input { padding: 6px 8px; margin-top: 5px; width: 220px; }
-    button { margin-top: 12px; padding: 8px 14px; border:0; border-radius:6px; background:#22c55e; color:#fff; cursor:pointer }
-    button.secondary { background:#0ea5e9 }
-    button.warn { background:#ef4444 }
-    table { border-collapse: collapse; margin-top: 18px; width: 100%; }
-    th, td { border: 1px solid #e5e7eb; padding: 8px; text-align: center; font-size:14px }
-    th { background: #f8fafc; }
-    .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
-    .tip{color:#64748b; font-size:12px}
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SimpleReceiveLite v4 — 住址名冊＋簽收＋循環流水＋部分條件搜尋</title>
+<style>
+  :root{--bg:#0f172a;--panel:#0b1220;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--accent:#22c55e;--danger:#ef4444;--info:#0ea5e9}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,"PingFang TC","Microsoft JhengHei",sans-serif}
+  .wrap{max-width:1100px;margin:24px auto;padding:16px}
+  h1{margin:0 0 8px;font-size:22px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:12px}
+  .tabs{display:flex;gap:8px;margin-bottom:12px}
+  .tab{padding:8px 12px;border-radius:999px;border:1px solid #334155;background:#0b1220;color:#cbd5e1;cursor:pointer}
+  .tab.active{background:var(--accent);color:#052e12;border-color:#16a34a}
+  .card{background:var(--card);border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  label{display:block;font-size:13px;color:var(--muted);margin:6px 0}
+  input,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e5e7eb}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .btn{padding:8px 12px;border:0;border-radius:10px;background:#334155;color:#fff;cursor:pointer}
+  .primary{background:var(--accent);color:#052e12;font-weight:700}
+  .danger{background:var(--danger)}
+  .info{background:var(--info)}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:8px;border-bottom:1px solid #243244;text-align:left;font-size:13px}
+  th{color:#cbd5e1}
+  .toolbar{display:flex;gap:8px;justify-content:space-between;align-items:center;margin:6px 0 10px;flex-wrap:wrap}
+  .pill{font-size:12px;color:#94a3b8}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:16px}
+  .modal.show{display:flex}
+  .box{background:#111827;border-radius:14px;padding:14px;max-width:900px;width:100%}
+  canvas{width:100%;height:220px;background:#0b1220;border:1px dashed #334155;border-radius:10px;touch-action:none}
+  .muted{color:#94a3b8}
+  /* 列印樣式（A4） */
+  @media print{
+    body{background:#fff;color:#000}
+    .tabs,.toolbar,.sub,button,.modal{display:none!important}
+    .card{box-shadow:none;border:0;padding:0}
+    table{font-size:12px}
+    th,td{border:1px solid #999}
+    h1{font-size:18px;color:#000;margin:0 0 6px}
+  }
+</style>
 </head>
 <body>
-  <h1>📦 SimpleReceiveLite v3.1</h1>
-  <div class="tip">（已內建 待簽收 / 已簽收 / CSV 匯出）</div>
+<div class="wrap">
+  <h1>📦 SimpleReceiveLite v4</h1>
+  <div class="sub">新增 → <b>住址三欄連動</b> → 待簽收列表<b>三欄搜尋（可只選一兩欄）</b> → <b>簽收（簽名＋件數）</b> → 已簽收；流水號<b>1–500循環</b>；<b>住址名冊</b>記住收件人與貨運公司；CSV 匯出。</div>
 
-  <!-- 新增紀錄表單 -->
-  <form id="receiveForm">
-    <label>棟別：
-      <select id="building" required>
-        <option value="">請選擇</option>
-        <option value="47">甲棟 (47)</option>
-        <option value="47-7">乙棟 (47-7)</option>
-        <option value="47-6">丙棟 (47-6)</option>
-        <option value="47-5">丁棟 (47-5)</option>
-        <option value="47-3">戊棟 (47-3)</option>
-        <option value="47-1">己棟 (47-1)</option>
-      </select>
-    </label>
-
-    <label>樓層：
-      <select id="floor" required></select>
-    </label>
-
-    <label>戶號：
-      <select id="unit" required></select>
-    </label>
-
-    <label>貨件類型：
-      <select id="type" required>
-        <option value="">請選擇</option>
-        <option value="包裹">包裹</option>
-        <option value="掛號">掛號</option>
-      </select>
-    </label>
-
-    <label>收件人：
-      <input id="receiver" list="receiverList" placeholder="輸入或選擇" required />
-      <datalist id="receiverList"></datalist>
-    </label>
-
-    <label>件數：
-      <input id="count" type="number" min="1" value="1" required />
-    </label>
-
-    <label>貨運公司：
-      <input id="company" list="companyList" placeholder="輸入或選擇" />
-      <datalist id="companyList"></datalist>
-    </label>
-
-    <label>備註：
-      <input id="note" placeholder="擺放位置或備註" />
-    </label>
-
-    <button type="submit">新增紀錄</button>
-    <span id="status" class="tip"></span>
-  </form>
-
-  <!-- 工具列 -->
-  <div class="toolbar">
-    <button id="exportToday" class="secondary">下載今日紀錄</button>
-    <button id="exportAll" class="secondary">下載全部紀錄</button>
-    <button id="exportPending" class="secondary">下載待簽收</button>
-    <button id="exportSigned" class="secondary">下載已簽收</button>
-    <button id="clearAll" class="warn">清空所有紀錄</button>
+  <div class="tabs">
+    <button class="tab active" data-tab="add">➕ 新增</button>
+    <button class="tab" data-tab="pending">📥 待簽收</button>
+    <button class="tab" data-tab="signed">📤 已簽收</button>
   </div>
 
-  <!-- 待簽收紀錄 -->
-  <h3>📋 待簽收紀錄</h3>
-  <table id="pendingTable">
-    <thead>
-      <tr>
-        <th>時間</th><th>流水號</th><th>地址</th><th>收件人</th>
-        <th>件數</th><th>貨運公司</th><th>備註</th><th>簽收</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <!-- 已簽收紀錄 -->
-  <h3>✅ 已簽收紀錄</h3>
-  <table id="signedTable">
-    <thead>
-      <tr>
-        <th>時間</th><th>流水號</th><th>地址</th><th>收件人</th>
-        <th>件數</th><th>貨運公司</th><th>備註</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <script>
-    const buildingSel = document.getElementById("building");
-    const floorSel = document.getElementById("floor");
-    const unitSel = document.getElementById("unit");
-    const receiverList = document.getElementById("receiverList");
-    const companyList = document.getElementById("companyList");
-    const pendingBody = document.querySelector("#pendingTable tbody");
-    const signedBody = document.querySelector("#signedTable tbody");
-    const form = document.getElementById("receiveForm");
-    const status = document.getElementById("status");
-
-    // 初始化樓層、戶號
-    function initSelectors() {
-      floorSel.innerHTML = '<option value="">請選擇</option>';
-      for (let i=1;i<=14;i++) floorSel.add(new Option(i+"樓",i+"樓"));
-      unitSel.innerHTML = '<option value="">請選擇</option>';
-      for (let i=1;i<=8;i++) unitSel.add(new Option("之"+i,"之"+i));
-    }
-    initSelectors();
-
-    // 紀錄
-    let records = JSON.parse(localStorage.getItem("records")||"[]");
-    let signed = JSON.parse(localStorage.getItem("signed")||"[]");
-    let counter = records.length ? (records[records.length-1].id%500)+1 : 1;
-
-    // 渲染表格
-    function renderTables(){
-      pendingBody.innerHTML="";
-      signedBody.innerHTML="";
-      records.forEach(r=>{
-        let row=pendingBody.insertRow();
-        row.insertCell().textContent=r.time;
-        row.insertCell().textContent=r.id;
-        row.insertCell().textContent=`${r.building}-${r.floor}-${r.unit}`;
-        row.insertCell().textContent=r.receiver;
-        row.insertCell().textContent=r.count;
-        row.insertCell().textContent=r.company;
-        row.insertCell().textContent=r.note;
-        let btn=row.insertCell();
-        let sbtn=document.createElement("button");
-        sbtn.textContent="簽收";
-        sbtn.onclick=()=>{signRecord(r.id)};
-        btn.appendChild(sbtn);
-      });
-      signed.forEach(r=>{
-        let row=signedBody.insertRow();
-        row.insertCell().textContent=r.time;
-        row.insertCell().textContent=r.id;
-        row.insertCell().textContent=`${r.building}-${r.floor}-${r.unit}`;
-        row.insertCell().textContent=r.receiver;
-        row.insertCell().textContent=r.count;
-        row.insertCell().textContent=r.company;
-        row.insertCell().textContent=r.note;
-      });
-      localStorage.setItem("records",JSON.stringify(records));
-      localStorage.setItem("signed",JSON.stringify(signed));
-    }
-
-    // 簽收
-    function signRecord(id){
-      let idx=records.findIndex(r=>r.id===id);
-      if(idx>-1){
-        signed.push(records[idx]);
-        records.splice(idx,1);
-        renderTables();
-      }
-    }
-
-    // 新增紀錄
-    form.onsubmit=(e)=>{
-      e.preventDefault();
-      const rec={
-        id:counter,
-        time:new Date().toLocaleString(),
-        building:buildingSel.value,
-        floor:floorSel.value,
-        unit:unitSel.value,
-        receiver:document.getElementById("receiver").value,
-        count:document.getElementById("count").value,
-        company:document.getElementById("company").value,
-        note:document.getElementById("note").value
-      };
-      counter = counter===500?1:counter+1;
-      records.push(rec);
-      addToList(receiverList,rec.receiver);
-      addToList(companyList,rec.company);
-      renderTables();
-      form.reset();
-      status.textContent="✅ 已新增";
-      setTimeout(()=>status.textContent="",1500);
-    };
-
-    function addToList(datalist,value){
-      if(value && ![...datalist.options].some(o=>o.value===value)){
-        let opt=document.createElement("option");
-        opt.value=value; datalist.appendChild(opt);
-      }
-    }
-
-    // 匯出 CSV
-    function exportCSV(data,name){
-      let csv="時間,流水號,地址,收件人,件數,貨運公司,備註\n";
-      data.forEach(r=>{
-        csv+=[r.time,r.id,`${r.building}-${r.floor}-${r.unit}`,r.receiver,r.count,r.company,r.note].join(",")+"\n";
-      });
-      let blob=new Blob([csv],{type:"text/csv"});
-      let a=document.createElement("a");
-      a.href=URL.createObjectURL(blob);
-      a.download=name; a.click();
-    }
-
-    document.getElementById("exportToday").onclick=()=>exportCSV(records.filter(r=>r.time.startsWith(new Date().toLocaleDateString())),"today.csv");
-    document.getElementById("exportAll").onclick=()=>exportCSV(records.concat(signed),"all.csv");
-    document.getElementById("exportPending").onclick=()=>exportCSV(records,"pending.csv");
-    document.getElementById("exportSigned").onclick=()=>exportCSV(signed,"signed.csv");
-    document.getElementById("clearAll").onclick=()=>{ if(confirm("確定清除所有紀錄？")){records=[];signed=[];counter=1;renderTables();} };
-
-    renderTables();
-  </script>
-</body>
-</html>
+  <!-- 新增 -->
+  <section id="tab-add" class="card">
+    <div class="grid">
+      <div><label>棟別</label><select id="bld"></select></div>
+      <div><label>樓層</label><select id="floor" disabled></select></div>
+      <div><label>戶別</label><select id="unit" disabled></select></div>
+    </div>
+    <div class="grid2" style="margin-top:10px">
+      <div><label>收件人</label>
+        <input id="receiver" list="receiverList" placeholder="住戶姓名" />
+        <datalist id="receiverList"></datalist>
+      </div>
+      <div><label>件別</label>
+        <select id="category"><option>包裹</option><option>掛號</option></select>
+      </div>
+      <div><label>貨運公司</label>
+        <input id="company" list="companyList" placeholder="大榮 / 新竹 / 宅配通 / 宅急便 / 其他"
