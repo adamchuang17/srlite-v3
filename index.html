@@ -2,293 +2,351 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>SimpleReceiveLite v3 — 待簽收 / 已簽收</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SimpleReceiveLite v4 — 連動下拉</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <style>
-    :root{--bg:#0f172a;--panel:#0b1220;--card:#111827;--muted:#64748b;--text:#e5e7eb;--accent:#22c55e;--danger:#ef4444;--info:#0ea5e9}
-    html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,"PingFang TC","Microsoft JhengHei",sans-serif}
-    .wrap{max-width:1100px;margin:24px auto;padding:16px}
-    h1{margin:0 0 8px}
-    .sub{color:#94a3b8;font-size:13px;margin-bottom:12px}
-    .tabs{display:flex;gap:8px;margin-bottom:12px}
-    .tab{padding:8px 12px;border-radius:999px;border:1px solid #334155;background:#0b1220;color:#cbd5e1;cursor:pointer}
-    .tab.active{background:var(--accent);color:#052e12;border-color:#16a34a}
-    .card{background:var(--card);border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
-    label{display:block;font-size:13px;color:#a1a1aa;margin:6px 0}
-    input,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e5e7eb}
-    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-    .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-    .btn{padding:8px 12px;border:0;border-radius:10px;background:#334155;color:#fff;cursor:pointer}
-    .primary{background:var(--accent);color:#052e12;font-weight:700}
-    .danger{background:var(--danger)}
-    .info{background:var(--info)}
-    table{width:100%;border-collapse:collapse}
-    th,td{padding:8px;border-bottom:1px solid #243244;text-align:left;font-size:13px}
-    th{color:#cbd5e1}
-    .toolbar{display:flex;gap:8px;justify-content:space-between;align-items:center;margin:6px 0 10px}
-    .pill{font-size:12px;color:#94a3b8}
-    .hint{color:#86efac;font-size:12px;margin-top:6px}
-    .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:16px}
-    .modal.show{display:flex}
-    .box{background:#111827;border-radius:14px;padding:14px;max-width:900px;width:100%}
-    canvas{width:100%;height:220px;background:#0b1220;border:1px dashed #334155;border-radius:10px;touch-action:none}
+    body { font-family: Arial, sans-serif; margin: 20px; color:#0f172a }
+    h1 { color: #2c3e50; margin-bottom:8px }
+    label { display:block; margin-top:10px }
+    select, input { padding:6px 8px; margin-top:5px; width:220px }
+    button { margin-top:12px; padding:8px 14px; border:0; border-radius:6px; background:#22c55e; color:#fff; cursor:pointer }
+    button.secondary { background:#0ea5e9 }
+    button.warn { background:#ef4444 }
+    button.ghost { background:#334155 }
+    table { border-collapse:collapse; margin-top:18px; width:100% }
+    th,td { border:1px solid #e5e7eb; padding:8px; text-align:center; font-size:14px }
+    th { background:#f8fafc }
+    .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px}
+    .tip{color:#64748b; font-size:12px}
+    .group{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    .muted{color:#64748b}
+    .disabled { opacity:.6 }
   </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>📦 SimpleReceiveLite v3</h1>
-  <div class="sub">流程：新增 → <b>依住址搜尋</b> → <b>簽收</b> → 移入「已簽收」。資料存本機（localStorage），兩邊皆可匯出 CSV。</div>
+  <h1>📦 SimpleReceiveLite v4</h1>
+  <div class="tip">收貨登錄＋三欄連動篩選（棟 → 樓 → 戶）。含「今日 / 全部」CSV 匯出。</div>
 
-  <div class="tabs">
-    <button class="tab active" data-tab="add">➕ 新增</button>
-    <button class="tab" data-tab="pending">📥 待簽收</button>
-    <button class="tab" data-tab="signed">📤 已簽收</button>
-  </div>
+  <!-- 收貨表單（連動） -->
+  <form id="receiveForm">
+    <label>棟別：
+      <select id="building" required></select>
+    </label>
 
-  <!-- 新增 -->
-  <section id="tab-add" class="card">
-    <div class="grid">
-      <div><label>棟別</label><select id="bld"></select></div>
-      <div><label>樓層</label><select id="floor"></select></div>
-      <div><label>戶別</label><select id="unit"></select></div>
+    <label>樓層：
+      <select id="floor" required disabled></select>
+    </label>
+
+    <label>戶號：
+      <select id="unit" required disabled></select>
+    </label>
+
+    <label>貨件類型：
+      <select id="type" required>
+        <option value="">請選擇</option>
+        <option value="包裹">包裹</option>
+        <option value="掛號">掛號</option>
+      </select>
+    </label>
+
+    <label>收件人：
+      <input id="receiver" required placeholder="住戶姓名" />
+    </label>
+
+    <label>件數：
+      <input id="count" type="number" min="1" value="1" required />
+    </label>
+
+    <label>貨運公司：
+      <input id="company" list="companyList" placeholder="大榮 / 新竹 / 宅配通 / 宅急便 / 其他" />
+      <datalist id="companyList">
+        <option value="大榮"><option value="新竹"><option value="宅配通"><option value="宅急便"><option value="其他">
+      </datalist>
+    </label>
+
+    <label>備註：
+      <input id="note" placeholder="擺放位置或備註" />
+    </label>
+
+    <button type="submit">新增紀錄</button>
+    <span id="status" class="tip"></span>
+  </form>
+
+  <!-- 三欄「連動」篩選（列表） -->
+  <div class="toolbar">
+    <div class="group">
+      <span class="muted">篩選：</span>
+      <select id="bldF" title="棟別"></select>
+      <select id="floorF" title="樓層" disabled></select>
+      <select id="unitF" title="戶號" disabled></select>
+      <button id="resetFilters" class="ghost" type="button">清除篩選</button>
     </div>
-    <div class="grid2" style="margin-top:10px">
-      <div><label>收件人</label><input id="receiver" placeholder="住戶姓名" /></div>
-      <div><label>件別</label>
-        <select id="category"><option>包裹</option><option>掛號</option></select>
-      </div>
-      <div><label>貨運公司</label>
-        <input id="company" list="companyList" placeholder="大榮 / 新竹 / 宅配通 / 宅急便 / 其他" />
-        <datalist id="companyList">
-          <option value="大榮"><option value="新竹"><option value="宅配通"><option value="宅急便"><option value="其他">
-        </datalist>
-      </div>
-      <div><label>件數</label><input id="qty" type="number" min="1" value="1" /></div>
-      <div style="grid-column:1/-1"><label>備註</label><input id="note" placeholder="擺放位置或備註" /></div>
-    </div>
-    <div class="row" style="margin-top:10px">
-      <button class="btn primary" id="addBtn">加入待簽收</button>
-      <span class="pill" id="pendingCount">0 待簽收</span>
-    </div>
-    <div class="hint">新增完成會自動跳到「待簽收」，可直接用上方搜尋住址。</div>
-  </section>
-
-  <div style="height:10px"></div>
-
-  <!-- 待簽收 -->
-  <section id="tab-pending" class="card" style="display:none">
-    <div class="toolbar">
-      <input id="qPending" placeholder="搜尋：住址（甲/乙/丙/丁/戊/己 + 樓 + 戶）/ 收件人 / 貨運 / 件別" style="flex:1" />
-      <div class="row">
-        <button class="btn info" id="exportPending">匯出CSV（待簽收）</button>
-        <span class="pill" id="pendingCount2">0 筆</span>
-      </div>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>時間</th><th>住址</th><th>件別</th><th>收件人</th><th>貨運</th><th>件數</th><th>備註</th><th>動作</th></tr></thead>
-      <tbody id="tbPending"></tbody>
-    </table>
-  </section>
-
-  <div style="height:10px"></div>
-
-  <!-- 已簽收 -->
-  <section id="tab-signed" class="card" style="display:none">
-    <div class="toolbar">
-      <input id="qSigned" placeholder="搜尋：住址 / 收件人 / 貨運 / 簽收人 / 件別" style="flex:1" />
-      <div class="row">
-        <button class="btn info" id="exportSigned">匯出CSV（已簽收）</button>
-        <span class="pill" id="signedCount">0 筆</span>
-      </div>
-    </div>
-    <table>
-      <thead><tr><th>#</th><th>收貨時間</th><th>住址</th><th>件別</th><th>收件人</th><th>貨運</th><th>件數</th><th>備註</th><th>簽收人</th><th>簽收時間</th><th>簽名</th><th>動作</th></tr></thead>
-      <tbody id="tbSigned"></tbody>
-    </table>
-  </section>
-</div>
-
-<!-- 簽收視窗 -->
-<div class="modal" id="signModal">
-  <div class="box">
-    <h3 style="margin:0 0 8px">簽收</h3>
-    <div class="grid2">
-      <div><label>簽收人</label><input id="signer" placeholder="住戶簽收人" /></div>
-      <div><label>件數確認</label><input id="signQty" type="number" min="1" /></div>
-    </div>
-    <label style="margin-top:8px">簽名</label>
-    <canvas id="sig" width="880" height="220"></canvas>
-    <div class="row" style="margin-top:8px;justify-content:flex-end">
-      <button class="btn" id="clearSig">清除</button>
-      <button class="btn danger" id="cancelSign">取消</button>
-      <button class="btn primary" id="confirmSign">確認簽收 → 轉入已簽收</button>
+    <div class="group">
+      <button id="exportToday" class="secondary" type="button">下載今日紀錄 (CSV)</button>
+      <button id="exportAll" class="secondary" type="button">下載全部紀錄 (CSV)</button>
+      <button id="clearAll" class="warn" type="button" title="僅清除本機保存的表格資料">清空紀錄</button>
     </div>
   </div>
-</div>
+
+  <!-- 紀錄表格 -->
+  <table id="recordTable">
+    <thead>
+      <tr>
+        <th>時間</th>
+        <th>流水號</th>
+        <th>棟別</th>
+        <th>樓層</th>
+        <th>戶號</th>
+        <th>貨件類型</th>
+        <th>收件人</th>
+        <th>件數</th>
+        <th>貨運公司</th>
+        <th>備註</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
 
 <script>
-(()=>{
-// ====== 工具 ======
-const $=id=>document.getElementById(id);
-const pad=n=>String(n).padStart(2,'0');
-const nowISO=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`};
-const load=(k,f)=>{try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(f));}catch(_){return f;}};
-const save=(k,v)=> localStorage.setItem(k, JSON.stringify(v));
-const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+  // ================== 常數 ==================
+  const BUILDINGS = ["甲","乙","丙","丁","戊","己"];      // 顯示用
+  const FLOORS = Array.from({length:14},(_,i)=> (i+1)+"樓");
+  const UNITS  = Array.from({length:8}, (_,i)=> "之"+(i+1));
 
-// ====== 資料鍵 ======
-const PENDING='srl_v3_pending';
-const SIGNED='srl_v3_signed';
+  // ================== 元件 ==================
+  const form = document.getElementById("receiveForm");
+  const tableBody = document.querySelector("#recordTable tbody");
+  const status = document.getElementById("status");
 
-// ====== 地址下拉：甲/乙/丙/丁/戊/己 × 1–14 樓 × 之1~之8 ======
-const BUILDINGS=["甲","乙","丙","丁","戊","己"];
-const FLOORS=Array.from({length:14},(_,i)=> i+1);
-const UNITS = Array.from({length:8},(_,i)=> `之${i+1}`);
+  const buildingSel = document.getElementById("building");
+  const floorSel    = document.getElementById("floor");
+  const unitSel     = document.getElementById("unit");
 
-function fill(sel, arr, fmt=(x)=>x){
-  sel.innerHTML='';
-  arr.forEach(v=>{const o=document.createElement('option'); o.value=v; o.textContent=fmt(v); sel.appendChild(o);});
-}
-function initSelectors(){
-  fill($('bld'), BUILDINGS);
-  fill($('floor'), FLOORS, f=> `${f}樓`);
-  fill($('unit'), UNITS);
-}
-function fullAddress(){ return `${$('bld').value} ${$('floor').value}樓${$('unit').value}`; }
-initSelectors();
+  const bldF   = document.getElementById("bldF");
+  const floorF = document.getElementById("floorF");
+  const unitF  = document.getElementById("unitF");
+  const resetFiltersBtn = document.getElementById("resetFilters");
 
-// ====== 新增 → 待簽收 ======
-$('addBtn').onclick=()=>{
-  const receiver=$('receiver').value.trim();
-  if(!receiver) return alert('請填收件人');
-  const list=load(PENDING,[]);
-  list.push({
-    id: (crypto&&crypto.randomUUID? crypto.randomUUID(): String(Date.now())),
-    created_at: nowISO(),
-    address: fullAddress(),
-    category: $('category').value,
-    receiver,
-    company: $('company').value.trim(),
-    qty: parseInt(($('qty').value||'1'),10),
-    note: $('note').value.trim()
-  });
-  save(PENDING, list);
-  $('receiver').value=''; $('company').value=''; $('qty').value=1; $('note').value='';
-  renderPending(); switchTab('pending');
-};
+  // ================== 資料儲存 ==================
+  let records = load();
+  let counter = records.length ? Math.max(...records.map(r=>r.id))+1 : 1;
 
-// ====== 待簽收表 + 搜尋 ======
-const qPending=$('qPending'), tbPending=$('tbPending');
-function renderPending(){
-  const list=load(PENDING,[]);
-  const q=(qPending.value||'').trim().toLowerCase();
-  const rows=list.filter(r=> !q || [r.address,r.receiver,r.company,r.category].join(' ').toLowerCase().includes(q));
-  tbPending.innerHTML='';
-  rows.forEach((r,i)=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${i+1}</td><td>${r.created_at}</td><td>${esc(r.address)}</td><td>${esc(r.category)}</td><td>${esc(r.receiver)}</td><td>${esc(r.company)}</td><td>${r.qty}</td><td>${esc(r.note)}</td>
-    <td>
-      <button class="btn primary" data-act="sign" data-id="${r.id}">簽收</button>
-      <button class="btn danger" data-act="del" data-id="${r.id}">刪除</button>
-    </td>`;
-    tbPending.appendChild(tr);
-  });
-  $('pendingCount').textContent = `${list.length} 待簽收`;
-  $('pendingCount2').textContent = `${rows.length} 筆`;
-}
-qPending.addEventListener('input', renderPending);
-tbPending.addEventListener('click', e=>{
-  const btn=e.target.closest('button'); if(!btn) return;
-  const id=btn.getAttribute('data-id');
-  const list=load(PENDING,[]); const idx=list.findIndex(x=>x.id===id);
-  if(btn.dataset.act==='del' && idx>-1){
-    if(confirm('刪除此待簽收？')){ list.splice(idx,1); save(PENDING,list); renderPending(); }
-  }else if(btn.dataset.act==='sign' && idx>-1){
-    openSign(id, list[idx].qty);
+  function load(){
+    try { return JSON.parse(localStorage.getItem("records") || "[]"); }
+    catch { return []; }
   }
-});
-$('exportPending').onclick=()=> exportCSV(load(PENDING,[]), 'pending.csv');
+  function save(){ localStorage.setItem("records", JSON.stringify(records)); }
 
-// ====== 已簽收表 + 搜尋 ======
-const qSigned=$('qSigned'), tbSigned=$('tbSigned');
-function renderSigned(){
-  const list=load(SIGNED,[]);
-  const q=(qSigned.value||'').trim().toLowerCase();
-  const rows=list.filter(r=> !q || [r.address,r.receiver,r.company,r.category,r.signer].join(' ').toLowerCase().includes(q));
-  tbSigned.innerHTML='';
-  rows.forEach((r,i)=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${i+1}</td><td>${r.created_at}</td><td>${esc(r.address)}</td><td>${esc(r.category)}</td><td>${esc(r.receiver)}</td><td>${esc(r.company)}</td><td>${r.qty}</td><td>${esc(r.note)}</td><td>${esc(r.signer||'')}</td><td>${r.signed_at||''}</td>
-    <td>`+(r.signature?`<a class="btn" href="${r.signature}" download="signature_${r.id}.png">下載</a>`:'—')+`</td>
-    <td><button class="btn danger" data-del="${r.id}">刪除</button></td>`;
-    tbSigned.appendChild(tr);
+  // ================== 工具 ==================
+  function fill(select, arr, {withAll=false, placeholder="請選擇"} = {}){
+    select.innerHTML = "";
+    if (withAll){
+      const opt = document.createElement("option");
+      opt.value = ""; opt.textContent = "全部";
+      select.appendChild(opt);
+    } else {
+      const opt0 = document.createElement("option");
+      opt0.value = ""; opt0.textContent = placeholder;
+      select.appendChild(opt0);
+    }
+    arr.forEach(v=>{
+      const o=document.createElement("option");
+      o.value=v; o.textContent=v;
+      select.appendChild(o);
+    });
+  }
+  function todayKey(d=new Date()){
+    const pad=n=>String(n).padStart(2,"0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+
+  // ================== 表單：連動下拉 ==================
+  function initFormSelectors(){
+    fill(buildingSel, BUILDINGS, {withAll:false, placeholder:"請選擇"});
+    // 初始時樓/戶鎖定
+    floorSel.disabled = true; unitSel.disabled = true;
+    fill(floorSel, [], {withAll:false, placeholder:"請先選棟"});
+    fill(unitSel,  [], {withAll:false, placeholder:"請先選樓"});
+  }
+
+  buildingSel.addEventListener("change", ()=>{
+    if (!buildingSel.value){
+      floorSel.disabled = true; unitSel.disabled = true;
+      fill(floorSel, [], {placeholder:"請先選棟"});
+      fill(unitSel,  [], {placeholder:"請先選樓"});
+      return;
+    }
+    fill(floorSel, FLOORS, {placeholder:"請選擇"});
+    floorSel.disabled = false;
+
+    // 重置戶別
+    unitSel.disabled = true;
+    fill(unitSel, [], {placeholder:"請先選樓"});
   });
-  $('signedCount').textContent = `${rows.length} 筆`;
-}
-qSigned.addEventListener('input', renderSigned);
-tbSigned.addEventListener('click', e=>{
-  const id=e.target.getAttribute('data-del'); if(!id) return;
-  const list=load(SIGNED,[]); const idx=list.findIndex(x=>x.id===id);
-  if(idx>-1 && confirm('刪除此已簽收？')){ list.splice(idx,1); save(SIGNED,list); renderSigned(); }
-});
-$('exportSigned').onclick=()=> exportCSV(load(SIGNED,[]), 'signed.csv');
 
-// ====== 匯出 CSV ======
-function exportCSV(arr, filename){
-  const header = Object.keys(arr[0]||{id:'',created_at:'',address:'',category:'',receiver:'',company:'',qty:'',note:'',signer:'',signed_at:'',signature:''});
-  const rows=[header.join(',')];
-  const escq = s=> `"${String(s??"").replace(/"/g,'""')}"`;
-  arr.forEach(o=> rows.push(header.map(k=> escq(o[k])).join(',')));
-  const blob=new Blob([rows.join('\n')],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),800);
-}
+  floorSel.addEventListener("change", ()=>{
+    if (!floorSel.value){
+      unitSel.disabled = true;
+      fill(unitSel, [], {placeholder:"請先選樓"});
+      return;
+    }
+    fill(unitSel, UNITS, {placeholder:"請選擇"});
+    unitSel.disabled = false;
+  });
 
-// ====== 分頁切換 ======
-const tabs=[...document.querySelectorAll('.tab')];
-function switchTab(name){
-  tabs.forEach(t=> t.classList.toggle('active', t.dataset.tab===name));
-  ['add','pending','signed'].forEach(n=> document.getElementById('tab-'+n).style.display=(n===name?'block':'none'));
-  if(name==='pending') renderPending();
-  if(name==='signed') renderSigned();
-}
-tabs.forEach(t=> t.addEventListener('click', ()=> switchTab(t.dataset.tab)));
-renderPending(); renderSigned();
+  // ================== 篩選：連動下拉 ==================
+  function initFilterSelectors(){
+    fill(bldF, BUILDINGS, {withAll:true});
+    // 初始：樓/戶禁用，顯示「全部」
+    floorF.disabled = true; unitF.disabled = true;
+    fill(floorF, [], {withAll:true});  // 只有「全部」
+    fill(unitF,  [], {withAll:true});  // 只有「全部"}
 
-// ====== 簽名 / 簽收 → 轉已簽收 ======
-const modal=$('signModal'), signerEl=$('signer'), signQtyEl=$('signQty'), sig=$('sig'), ctx=sig.getContext('2d');
-let drawing=false,last=null,currentId=null;
+    bldF.addEventListener("change", ()=>{
+      if (!bldF.value){
+        // 沒選棟＝樓/戶回到「全部」且禁用
+        floorF.disabled = true; unitF.disabled = true;
+        fill(floorF, [], {withAll:true});
+        fill(unitF,  [], {withAll:true});
+        render();
+        return;
+      }
+      // 選了棟 → 樓可選
+      fill(floorF, FLOORS, {withAll:true});
+      floorF.disabled = false;
 
-function resetCanvas(){ ctx.fillStyle="#0b1220"; ctx.fillRect(0,0,sig.width,sig.height); ctx.strokeStyle="#e5e7eb"; ctx.lineWidth=3; ctx.lineCap='round'; }
-resetCanvas();
-function pos(e){ const r=sig.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x:x*(sig.width/r.width), y:y*(sig.height/r.height)}; }
-function start(e){ drawing=true; last=pos(e); e.preventDefault(); }
-function move(e){ if(!drawing) return; const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; e.preventDefault(); }
-function end(){ drawing=false; last=null }
-sig.addEventListener('mousedown',start); sig.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
-sig.addEventListener('touchstart',start,{passive:false}); sig.addEventListener('touchmove',move,{passive:false}); sig.addEventListener('touchend',end);
-$('clearSig').onclick=resetCanvas;
-$('cancelSign').onclick=()=> modal.classList.remove('show');
+      // 戶重置
+      unitF.disabled = true;
+      fill(unitF, [], {withAll:true});
+      render();
+    });
 
-function openSign(id, qty){
-  currentId=id; signerEl.value=''; signQtyEl.value=qty||1; resetCanvas(); modal.classList.add('show');
-}
-$('confirmSign').onclick=()=>{
-  const signer=signerEl.value.trim(); if(!signer) return alert('請填簽收人');
-  const pend=load(PENDING,[]); const idx=pend.findIndex(x=>x.id===currentId); if(idx===-1) return;
-  const item=pend[idx];
-  // 從待簽收移除
-  pend.splice(idx,1); save(PENDING, pend);
-  // 存入已簽收
-  const signed=load(SIGNED,[]);
-  signed.push({...item, signer, signed_at: nowISO(), qty: parseInt(signQtyEl.value||item.qty,10), signature: sig.toDataURL('image/png')});
-  save(SIGNED, signed);
-  modal.classList.remove('show'); renderPending(); renderSigned(); switchTab('signed');
-};
+    floorF.addEventListener("change", ()=>{
+      if (!floorF.value){
+        unitF.disabled = true;
+        fill(unitF, [], {withAll:true});
+        render();
+        return;
+      }
+      // 選了樓 → 戶可選
+      fill(unitF, UNITS, {withAll:true});
+      unitF.disabled = false;
+      render();
+    });
 
-// 讓「簽收」按鈕可以叫出視窗
-window.openSign=openSign;
-})();
+    unitF.addEventListener("change", render);
+
+    resetFiltersBtn.addEventListener("click", ()=>{
+      bldF.value = "";
+      floorF.disabled = true; unitF.disabled = true;
+      fill(floorF, [], {withAll:true});
+      fill(unitF,  [], {withAll:true});
+      render();
+    });
+  }
+
+  function addrMatch(rec, bld, floor, unit){
+    // rec.building e.g. 甲； rec.floor e.g. 5樓； rec.unit e.g. 之2
+    if (bld   && rec.building !== bld) return false;
+    if (floor && rec.floor    !== floor) return false;
+    if (unit  && rec.unit     !== unit) return false;
+    return true;
+  }
+
+  // ================== 表格渲染 ==================
+  function render(){
+    tableBody.innerHTML = "";
+    const b = bldF.value;
+    const f = floorF.value;
+    const u = unitF.value;
+
+    const rows = records.filter(r => addrMatch(r, b, f, u));
+    rows.forEach(r=>{
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${r.time}</td>
+        <td>${r.id}</td>
+        <td>${r.building}</td>
+        <td>${r.floor}</td>
+        <td>${r.unit}</td>
+        <td>${r.type}</td>
+        <td>${r.receiver}</td>
+        <td>${r.count}</td>
+        <td>${r.company||""}</td>
+        <td>${r.note||""}</td>
+      `;
+      tableBody.appendChild(tr);
+    });
+    save();
+  }
+
+  // ================== 新增紀錄 ==================
+  form.addEventListener("submit", e=>{
+    e.preventDefault();
+    // 基本驗證
+    if (!buildingSel.value || !floorSel.value || !unitSel.value){
+      status.textContent = "⚠️ 住址未完整（棟 / 樓 / 戶）";
+      status.style.color = "#ef4444";
+      return;
+    }
+    const now = new Date();
+    const rec = {
+      id: counter++,
+      day: todayKey(now),
+      time: now.toLocaleString(),
+      building: buildingSel.value,
+      floor: floorSel.value,
+      unit: unitSel.value,
+      type: document.getElementById("type").value,
+      receiver: document.getElementById("receiver").value.trim(),
+      count: parseInt(document.getElementById("count").value||"1",10),
+      company: document.getElementById("company").value.trim(),
+      note: document.getElementById("note").value.trim()
+    };
+    records.push(rec);
+    render();
+    form.reset();
+    // 重置表單下拉狀態
+    initFormSelectors();
+
+    status.textContent = "✅ 已新增";
+    status.style.color = "#16a34a";
+    setTimeout(()=> status.textContent="", 1500);
+  });
+
+  // ================== 匯出 CSV ==================
+  function exportCSV(data, filename){
+    if (!data.length){ alert("尚無資料"); return; }
+    const header = ["時間","流水號","棟別","樓層","戶號","貨件類型","收件人","件數","貨運公司","備註"];
+    const rows = [header.join(",")];
+    const esc = s => `"${String(s??"").replace(/"/g,'""')}"`;
+    data.forEach(r=>{
+      rows.push([r.time,r.id,r.building,r.floor,r.unit,r.type,r.receiver,r.count,r.company||"",r.note||""].map(esc).join(","));
+    });
+    const blob = new Blob([rows.join("\n")], {type:"text/csv;charset=utf-8;"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+  }
+
+  document.getElementById("exportToday").addEventListener("click", ()=>{
+    const today = todayKey();
+    exportCSV(records.filter(r=> r.day===today), `SRL_today_${today}.csv`);
+  });
+  document.getElementById("exportAll").addEventListener("click", ()=>{
+    exportCSV(records, "SRL_all.csv");
+  });
+  document.getElementById("clearAll").addEventListener("click", ()=>{
+    if (!confirm("確定清除所有紀錄？")) return;
+    records = []; counter = 1; save(); render();
+  });
+
+  // ================== 啟動 ==================
+  initFormSelectors();
+  initFilterSelectors();
+  render();
 </script>
 </body>
 </html>
