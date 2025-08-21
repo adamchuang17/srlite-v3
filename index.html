@@ -1,151 +1,105 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SimpleReceiveLite v4</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #222; color: #fff; }
-    .tabs, .toolbar { display: flex; background: #333; padding: 5px; }
-    .btn { margin: 5px; padding: 8px 12px; background: #555; color: #fff; border: none; cursor: pointer; }
-    .btn:hover { background: #777; }
-    .tab { display: none; padding: 10px; }
-    .active { display: block; }
-    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
-    .modal-content { background: #fff; color: #000; padding: 20px; border-radius: 5px; width: 300px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { border: 1px solid #aaa; padding: 6px; text-align: center; }
-    .sig-link { cursor: pointer; color: blue; text-decoration: underline; }
-    .sig-img { display: none; max-width: 240px; }
-    @media print {
-      .tabs, .btn, .toolbar, .modal { display: none !important; }
-      body { background: #fff !important; color: #000 !important; }
-      .card { box-shadow: none !important; background: #fff !important; }
-      table { font-size: 12px; }
-      .sig-link { display: none !important; }
-      .sig-img { display: block !important; max-width: 240px; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SimpleReceiveLite v4</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+    <style>
+        body {
+            background: #1e1e2f;
+            color: #fff;
+            padding: 20px;
+        }
+        .toolbar {
+            margin-bottom: 15px;
+        }
+        .card {
+            background: #2c2c3c;
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .sig-link { display:none; }
+        .sig-img { display:none; max-width:240px; margin-top:5px; }
+
+        /* 列印專用樣式 */
+        @media print {
+            .toolbar, .btn { display:none !important; }
+            body { background:#fff !important; color:#000 !important; }
+            .card { box-shadow:none !important; background:#fff !important; }
+            table { font-size:12px; }
+            .sig-link { display:none !important; }
+            .sig-img { display:block !important; max-width:240px; }
+        }
+    </style>
 </head>
 <body>
-  <div class="toolbar">
-    <button class="btn" id="printPending">列印待簽收</button>
-    <button class="btn" id="printSigned">列印已簽收</button>
-  </div>
-  <div class="tabs">
-    <button class="btn" onclick="switchTab('pending')">待簽收</button>
-    <button class="btn" onclick="switchTab('signed')">已簽收</button>
-  </div>
-  <div id="pending" class="tab active">
-    <h2>待簽收清單</h2>
-    <table>
-      <thead>
-        <tr><th>收件人</th><th>件數</th><th>操作</th></tr>
-      </thead>
-      <tbody id="pendingList"></tbody>
-    </table>
-  </div>
-  <div id="signed" class="tab">
-    <h2>已簽收清單</h2>
-    <table>
-      <thead>
-        <tr><th>收件人</th><th>件數</th><th>簽名</th></tr>
-      </thead>
-      <tbody id="signedList"></tbody>
-    </table>
-  </div>
-
-  <div id="sigModal" class="modal">
-    <div class="modal-content">
-      <p>請簽名：</p>
-      <canvas id="sigCanvas" width="250" height="100" style="border:1px solid #000"></canvas>
-      <br>
-      <button class="btn" id="saveSig">保存</button>
-      <button class="btn" onclick="closeModal()">取消</button>
+    <div class="toolbar">
+        <button id="printPending" class="btn btn-success">列印待簽收</button>
+        <button id="printSigned" class="btn btn-primary">列印已簽收</button>
     </div>
-  </div>
 
-  <script>
-    const PENDING = 'pendingData', SIGNED = 'signedData';
-    const pendingList = document.getElementById('pendingList');
-    const signedList = document.getElementById('signedList');
-    const modal = document.getElementById('sigModal');
-    const canvas = document.getElementById('sigCanvas');
-    const ctx = canvas.getContext('2d');
-    let drawing = false, currentName = '';
+    <div id="content">
+        <h3>待簽收清單</h3>
+        <div id="pendingList"></div>
 
-    function save(key, data) { localStorage.setItem(key, JSON.stringify(data)); }
-    function load(key) { return JSON.parse(localStorage.getItem(key) || '[]'); }
+        <h3 class="mt-4">已簽收清單</h3>
+        <div id="signedList"></div>
+    </div>
 
-    function renderPending() {
-      const data = load(PENDING);
-      pendingList.innerHTML = data.map((d,i)=>`
-        <tr>
-          <td>${d.name}</td>
-          <td>${d.count}</td>
-          <td><button class="btn" onclick="openModal('${d.name}', ${i})">簽收</button></td>
-        </tr>
-      `).join('');
-    }
+    <script>
+        const PENDING = "pending";
+        const SIGNED = "signed";
 
-    function renderSigned() {
-      const data = load(SIGNED);
-      signedList.innerHTML = data.map(d=>`
-        <tr>
-          <td>${d.name}</td>
-          <td>${d.count}</td>
-          <td>
-            <a class="sig-link" onclick="showSig(this)">查看</a>
-            <img class="sig-img" src="${d.sig}" />
-          </td>
-        </tr>
-      `).join('');
-    }
+        function save(key, data) {
+            localStorage.setItem(key, JSON.stringify(data));
+        }
 
-    function switchTab(tab) {
-      document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-      document.getElementById(tab).classList.add('active');
-    }
+        function load(key) {
+            return JSON.parse(localStorage.getItem(key) || "[]");
+        }
 
-    function openModal(name, index) {
-      currentName = name;
-      modal.style.display = 'flex';
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      canvas.onmousedown = e => { drawing = true; ctx.moveTo(e.offsetX, e.offsetY); };
-      canvas.onmousemove = e => { if(drawing){ ctx.lineTo(e.offsetX,e.offsetY); ctx.stroke(); } };
-      canvas.onmouseup = () => drawing = false;
-      document.getElementById('saveSig').onclick = () => {
-        const sigData = canvas.toDataURL();
-        const pending = load(PENDING);
-        const signed = load(SIGNED);
-        signed.push({ name: currentName, count: pending[index].count, sig: sigData });
-        pending.splice(index,1);
-        save(PENDING,pending); save(SIGNED,signed);
-        modal.style.display='none'; renderPending(); renderSigned();
-      };
-    }
+        function renderPending() {
+            const list = load(PENDING);
+            const div = document.getElementById("pendingList");
+            div.innerHTML = "";
+            list.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "card";
+                card.innerHTML = `<b>${item.name}</b> - ${item.note || ""}`;
+                div.appendChild(card);
+            });
+        }
 
-    function closeModal() { modal.style.display = 'none'; }
+        function renderSigned() {
+            const list = load(SIGNED);
+            const div = document.getElementById("signedList");
+            div.innerHTML = "";
+            list.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "card";
+                card.innerHTML = `<b>${item.name}</b> - ${item.note || ""} <br>
+                                  <img class="sig-img" src="${item.sign || ''}" alt="簽名">`;
+                div.appendChild(card);
+            });
+        }
 
-    function showSig(link) {
-      const img = link.nextElementSibling;
-      img.style.display = img.style.display==='block'?'none':'block';
-    }
+        // 列印功能
+        document.getElementById("printPending").onclick = () => {
+            window.print();
+        };
 
-    // ===== 列印功能 =====
-    document.getElementById('printPending').onclick = ()=>{
-      switchTab('pending');
-      setTimeout(()=>window.print(),50);
-    };
-    document.getElementById('printSigned').onclick = ()=>{
-      switchTab('signed');
-      setTimeout(()=>window.print(),50);
-    };
+        document.getElementById("printSigned").onclick = () => {
+            window.print();
+        };
 
-    // 初始化
-    if(!localStorage.getItem(PENDING)) save(PENDING,[]);
-    if(!localStorage.getItem(SIGNED)) save(SIGNED,[]);
-    renderPending(); renderSigned();
-  </script>
+        // 初始化
+        if(!localStorage.getItem(PENDING)) save(PENDING, []);
+        if(!localStorage.getItem(SIGNED)) save(SIGNED, []);
+        renderPending();
+        renderSigned();
+    </script>
 </body>
 </html>
