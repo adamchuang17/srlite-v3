@@ -1,4 +1,6 @@
-<!DOCTYPE html>
+# Generate a complete, ready-to-use index.html with print buttons, print CSS,
+# and signature images rendered for print. This is a standalone file.
+index_html = r"""<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8" />
@@ -33,6 +35,16 @@
   .box{background:#111827;border-radius:14px;padding:14px;max-width:900px;width:100%}
   canvas{width:100%;height:220px;background:#0b1220;border:1px dashed #334155;border-radius:10px;touch-action:none}
   .muted{color:#94a3b8}
+
+  /* 列印樣式（一定要在 <style> 內） */
+  @media print{
+    .tabs,.btn,.toolbar,.modal{ display:none !important; }
+    body{ background:#fff !important; color:#000 !important; }
+    .card{ box-shadow:none !important; background:#fff !important; }
+    table{ font-size:12px }
+    .sig-link{ display:none !important; }
+    .sig-img{ display:block !important; max-width:240px; }
+  }
 </style>
 </head>
 <body>
@@ -73,14 +85,6 @@
       <span class="pill">流水號循環：1–500</span>
     </div>
   </section>
-@media print {
-  .tabs, .btn, .toolbar, .modal { display:none !important; }
-  body { background:#fff !important; color:#000 !important; }
-  .card { box-shadow:none !important; background:#fff !important; }
-  table { font-size:12px }
-  .sig-link { display:none !important; }
-  .sig-img { display:block !important; max-width:240px; }
-}
 
   <div style="height:10px"></div>
 
@@ -95,8 +99,7 @@
       </div>
       <div class="row">
         <button class="btn info" id="exportPending">匯出CSV（待簽收）</button>
-       <button class="btn" id="printPending">列印此頁</button>
-
+        <button class="btn" id="printPending">列印此頁</button>
         <span class="pill" id="pendingCount2">0 筆</span>
       </div>
     </div>
@@ -120,7 +123,6 @@
       <div class="row">
         <button class="btn info" id="exportSigned">匯出CSV（已簽收）</button>
         <button class="btn" id="printSigned">列印此頁</button>
-
         <span class="pill" id="signedCount">0 筆</span>
       </div>
     </div>
@@ -303,7 +305,7 @@ function renderSigned(){
   rows.forEach((r,i)=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${r.serial}</td><td>${r.created_at}</td><td>${esc(r.address)}</td><td>${esc(r.category)}</td><td>${esc(r.receiver)}</td><td>${esc(r.company)}</td><td>${r.qty}</td><td>${esc(r.note)}</td><td>${esc(r.signer||'')}</td><td>${r.signed_at||''}</td>
-    <td>`+(r.signature?`<a class="btn" href="${r.signature}" download="signature_${r.serial}.png">下載</a>`:'—')+`</td>
+    <td>`+(r.signature?`<span class="sig-link"><a class="btn" href="${r.signature}" download="signature_${r.serial}.png">下載</a></span><img class="sig-img" src="${r.signature}" alt="簽名 ${r.serial}" style="display:none"/>`:'—')+`</td>
     <td><button class="btn danger" data-del="${r.serial}">刪除</button></td>`;
     tbSigned.appendChild(tr);
   });
@@ -367,18 +369,18 @@ $('confirmSign').onclick=()=>{
   save(SIGNED, signed);
   modal.classList.remove('show'); renderPending(); renderSigned(); switchTab('signed');
 };
+
 // ====== 其他：列印按鈕 ======
-$('printPending') && ($('printPending').onclick = ()=>{
-  switchTab('pending');
-  setTimeout(()=>window.print(),50);
-});
-$('printSigned') && ($('printSigned').onclick  = ()=>{
-  switchTab('signed');
-  setTimeout(()=>window.print(),50);
-});
+$('printPending') && ($('printPending').onclick = ()=>{ switchTab('pending'); setTimeout(()=>window.print(),50); });
+$('printSigned')  && ($('printSigned').onclick  = ()=>{ switchTab('signed');  setTimeout(()=>window.print(),50); });
 
 // ====== 初次渲染 ======
 })();
 </script>
 </body>
 </html>
+"""
+with open("/mnt/data/index.html", "w", encoding="utf-8") as f:
+    f.write(index_html)
+
+"/mnt/data/index.html saved"
