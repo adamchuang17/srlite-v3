@@ -1,105 +1,381 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SimpleReceiveLite v4</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SimpleReceiveLite v4 — 連動下拉＋簽收＋流水號循環</title>
+<style>
+  :root{--bg:#0f172a;--panel:#0b1220;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--accent:#22c55e;--danger:#ef4444;--info:#0ea5e9}
+  html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,"PingFang TC","Microsoft JhengHei",sans-serif}
+  .wrap{max-width:1100px;margin:24px auto;padding:16px}
+  h1{margin:0 0 8px;font-size:22px}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:12px}
+  .tabs{display:flex;gap:8px;margin-bottom:12px}
+  .tab{padding:8px 12px;border-radius:999px;border:1px solid #334155;background:#0b1220;color:#cbd5e1;cursor:pointer}
+  .tab.active{background:var(--accent);color:#052e12;border-color:#16a34a}
+  .card{background:var(--card);border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+  label{display:block;font-size:13px;color:var(--muted);margin:6px 0}
+  input,select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e5e7eb}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .btn{padding:8px 12px;border:0;border-radius:10px;background:#334155;color:#fff;cursor:pointer}
+  .primary{background:var(--accent);color:#052e12;font-weight:700}
+  .danger{background:var(--danger)}
+  .info{background:var(--info)}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:8px;border-bottom:1px solid #243244;text-align:left;font-size:13px}
+  th{color:#cbd5e1}
+  .toolbar{display:flex;gap:8px;justify-content:space-between;align-items:center;margin:6px 0 10px}
+  .pill{font-size:12px;color:#94a3b8}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:16px}
+  .modal.show{display:flex}
+  .box{background:#111827;border-radius:14px;padding:14px;max-width:900px;width:100%}
+  canvas{width:100%;height:220px;background:#0b1220;border:1px dashed #334155;border-radius:10px;touch-action:none}
+  .muted{color:#94a3b8}
 
-    <style>
-        body {
-            background: #1e1e2f;
-            color: #fff;
-            padding: 20px;
-        }
-        .toolbar {
-            margin-bottom: 15px;
-        }
-        .card {
-            background: #2c2c3c;
-            margin-bottom: 10px;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        .sig-link { display:none; }
-        .sig-img { display:none; max-width:240px; margin-top:5px; }
-
-        /* 列印專用樣式 */
-        @media print {
-            .toolbar, .btn { display:none !important; }
-            body { background:#fff !important; color:#000 !important; }
-            .card { box-shadow:none !important; background:#fff !important; }
-            table { font-size:12px; }
-            .sig-link { display:none !important; }
-            .sig-img { display:block !important; max-width:240px; }
-        }
-    </style>
+  /* 列印樣式 */
+  @media print{
+    .tabs,.btn,.toolbar,.modal{ display:none !important; }
+    body{ background:#fff !important; color:#000 !important; }
+    .card{ box-shadow:none !important; background:#fff !important; }
+    table{ font-size:12px }
+    .sig-link{ display:none !important; }
+    .sig-img{ display:block !important; max-width:240px; }
+  }
+</style>
 </head>
 <body>
+<div class="wrap">
+  <h1>📦 SimpleReceiveLite v4</h1>
+  <div class="sub">新增 → <b>住址三欄連動</b> → 待簽收列表用<b>三欄篩選</b> → <b>簽收（簽名＋件數）</b> → 已簽收；流水號<b>1–500循環</b>；各列表可匯出 CSV。</div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="add">➕ 新增</button>
+    <button class="tab" data-tab="pending">📥 待簽收</button>
+    <button class="tab" data-tab="signed">📤 已簽收</button>
+  </div>
+
+  <!-- 新增 -->
+  <section id="tab-add" class="card">
+    <div class="grid">
+      <div><label>棟別</label><select id="bld"></select></div>
+      <div><label>樓層</label><select id="floor" disabled></select></div>
+      <div><label>戶別</label><select id="unit" disabled></select></div>
+    </div>
+    <div class="grid2" style="margin-top:10px">
+      <div><label>收件人</label><input id="receiver" placeholder="住戶姓名" /></div>
+      <div><label>件別</label>
+        <select id="category"><option>包裹</option><option>掛號</option></select>
+      </div>
+      <div><label>貨運公司</label>
+        <input id="company" list="companyList" placeholder="大榮 / 新竹 / 宅配通 / 宅急便 / 其他" />
+        <datalist id="companyList">
+          <option value="大榮"><option value="新竹"><option value="宅配通"><option value="宅急便"><option value="其他">
+        </datalist>
+      </div>
+      <div><label>件數</label><input id="qty" type="number" min="1" value="1" /></div>
+      <div style="grid-column:1/-1"><label>備註</label><input id="note" placeholder="擺放位置或備註" /></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="addBtn">加入待簽收</button>
+      <span class="pill" id="pendingCount">0 待簽收</span>
+      <span class="pill">流水號循環：1–500</span>
+    </div>
+  </section>
+
+  <div style="height:10px"></div>
+
+  <!-- 待簽收 -->
+  <section id="tab-pending" class="card" style="display:none">
     <div class="toolbar">
-        <button id="printPending" class="btn btn-success">列印待簽收</button>
-        <button id="printSigned" class="btn btn-primary">列印已簽收</button>
+      <div class="row" style="flex:1;gap:8px">
+        <select id="bldF" title="棟別"></select>
+        <select id="floorF" title="樓層" disabled></select>
+        <select id="unitF" title="戶別" disabled></select>
+        <button class="btn" id="resetPending">清除篩選</button>
+      </div>
+      <div class="row">
+        <button class="btn info" id="exportPending">匯出CSV（待簽收）</button>
+        <button class="btn" id="printPending">列印此頁</button>
+        <span class="pill" id="pendingCount2">0 筆</span>
+      </div>
     </div>
+    <table>
+      <thead><tr><th>號</th><th>時間</th><th>住址</th><th>件別</th><th>收件人</th><th>貨運</th><th>件數</th><th>備註</th><th>動作</th></tr></thead>
+      <tbody id="tbPending"></tbody>
+    </table>
+  </section>
 
-    <div id="content">
-        <h3>待簽收清單</h3>
-        <div id="pendingList"></div>
+  <div style="height:10px"></div>
 
-        <h3 class="mt-4">已簽收清單</h3>
-        <div id="signedList"></div>
+  <!-- 已簽收 -->
+  <section id="tab-signed" class="card" style="display:none">
+    <div class="toolbar">
+      <div class="row" style="flex:1;gap:8px">
+        <select id="bldFs" title="棟別"></select>
+        <select id="floorFs" title="樓層" disabled></select>
+        <select id="unitFs" title="戶別" disabled></select>
+        <button class="btn" id="resetSigned">清除篩選</button>
+      </div>
+      <div class="row">
+        <button class="btn info" id="exportSigned">匯出CSV（已簽收）</button>
+        <button class="btn" id="printSigned">列印此頁</button>
+        <span class="pill" id="signedCount">0 筆</span>
+      </div>
     </div>
+    <table>
+      <thead><tr><th>號</th><th>收貨時間</th><th>住址</th><th>件別</th><th>收件人</th><th>貨運</th><th>件數</th><th>備註</th><th>簽收人</th><th>簽收時間</th><th>簽名</th><th>動作</th></tr></thead>
+      <tbody id="tbSigned"></tbody>
+    </table>
+  </section>
+</div>
 
-    <script>
-        const PENDING = "pending";
-        const SIGNED = "signed";
+<!-- 簽收視窗 -->
+<div class="modal" id="signModal">
+  <div class="box">
+    <h3 style="margin:0 0 8px">簽收</h3>
+    <div class="grid2">
+      <div><label>簽收人</label><input id="signer" placeholder="住戶簽收人" /></div>
+      <div><label>件數確認</label><input id="signQty" type="number" min="1" /></div>
+    </div>
+    <label style="margin-top:8px">簽名</label>
+    <canvas id="sig" width="880" height="220"></canvas>
+    <div class="row" style="margin-top:8px;justify-content:flex-end">
+      <span class="muted" id="signInfo"></span>
+      <button class="btn" id="clearSig">清除</button>
+      <button class="btn danger" id="cancelSign">取消</button>
+      <button class="btn primary" id="confirmSign">確認簽收 → 轉入已簽收</button>
+    </div>
+  </div>
+</div>
 
-        function save(key, data) {
-            localStorage.setItem(key, JSON.stringify(data));
-        }
+<script>
+(()=>{
+// ====== 小工具 ======
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const nowISO=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`};
+const load=(k,f)=>{try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(f));}catch(_){return f;}};
+const save=(k,v)=> localStorage.setItem(k, JSON.stringify(v));
+const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
 
-        function load(key) {
-            return JSON.parse(localStorage.getItem(key) || "[]");
-        }
+// ====== Keys ======
+const PENDING='srl_v4_pending';
+const SIGNED='srl_v4_signed';
+const SERIAL='srl_v4_serial'; // 1..500 循環
 
-        function renderPending() {
-            const list = load(PENDING);
-            const div = document.getElementById("pendingList");
-            div.innerHTML = "";
-            list.forEach(item => {
-                const card = document.createElement("div");
-                card.className = "card";
-                card.innerHTML = `<b>${item.name}</b> - ${item.note || ""}`;
-                div.appendChild(card);
-            });
-        }
+// ====== 住址資料：連動 ======
+const BUILDINGS=["甲","乙","丙","丁","戊","己"];         // 顯示文字
+const FLOORS=Array.from({length:14},(_,i)=> `${i+1}樓`);
+const UNITS =Array.from({length:8}, (_,i)=> `之${i+1}`);
 
-        function renderSigned() {
-            const list = load(SIGNED);
-            const div = document.getElementById("signedList");
-            div.innerHTML = "";
-            list.forEach(item => {
-                const card = document.createElement("div");
-                card.className = "card";
-                card.innerHTML = `<b>${item.name}</b> - ${item.note || ""} <br>
-                                  <img class="sig-img" src="${item.sign || ''}" alt="簽名">`;
-                div.appendChild(card);
-            });
-        }
+// 住址下拉（表單）
+function fill(sel, arr, {placeholder}={}){
+  sel.innerHTML='';
+  const o0=document.createElement('option'); o0.value=''; o0.textContent=placeholder||'請選擇'; sel.appendChild(o0);
+  arr.forEach(v=>{const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o);});
+}
+function initFormSelectors(){
+  fill($('bld'), BUILDINGS, {placeholder:'請選擇'});
+  $('floor').disabled=true; $('unit').disabled=true;
+  fill($('floor'), [], {placeholder:'請先選棟'});
+  fill($('unit'),  [], {placeholder:'請先選樓'});
+}
+$('bld').addEventListener('change', ()=>{
+  if(!$('bld').value){ $('floor').disabled=true; $('unit').disabled=true; fill($('floor'), [], {placeholder:'請先選棟'}); fill($('unit'), [], {placeholder:'請先選樓'}); return; }
+  fill($('floor'), FLOORS, {placeholder:'請選擇'}); $('floor').disabled=false;
+  fill($('unit'), [], {placeholder:'請先選樓'}); $('unit').disabled=true;
+});
+$('floor').addEventListener('change', ()=>{
+  if(!$('floor').value){ $('unit').disabled=true; fill($('unit'), [], {placeholder:'請先選樓'}); return; }
+  fill($('unit'), UNITS, {placeholder:'請選擇'}); $('unit').disabled=false;
+});
+initFormSelectors();
 
-        // 列印功能
-        document.getElementById("printPending").onclick = () => {
-            window.print();
-        };
+// 篩選下拉（列表）
+function fillAll(sel, arr){ sel.innerHTML=''; const a=document.createElement('option'); a.value=''; a.textContent='全部'; sel.appendChild(a); arr.forEach(v=>{const o=document.createElement('option'); o.value=v; o.textContent=v; sel.appendChild(o);}); }
+function initFilters(bSel,fSel,uSel){
+  fillAll($(bSel), BUILDINGS);
+  $(fSel).disabled=true; $(uSel).disabled=true;
+  $(bSel).addEventListener('change', ()=>{
+    if(!$(bSel).value){ $(fSel).disabled=true; $(uSel).disabled=true; fillAll($(fSel), []); fillAll($(uSel), []); renderPending(); renderSigned(); return; }
+    fillAll($(fSel), FLOORS); $(fSel).disabled=false;
+    $(uSel).disabled=true; fillAll($(uSel), []);
+    renderPending(); renderSigned();
+  });
+  $(fSel).addEventListener('change', ()=>{
+    if(!$(fSel).value){ $(uSel).disabled=true; fillAll($(uSel), []); renderPending(); renderSigned(); return; }
+    fillAll($(uSel), UNITS); $(uSel).disabled=false; renderPending(); renderSigned();
+  });
+  $(uSel).addEventListener('change', ()=>{ renderPending(); renderSigned(); });
+}
+initFilters('bldF','floorF','unitF');
+initFilters('bldFs','floorFs','unitFs');
+$('resetPending').onclick=()=>{ $('bldF').value=''; $('floorF').disabled=true; $('unitF').disabled=true; fillAll($('floorF'), []); fillAll($('unitF'), []); renderPending(); };
+$('resetSigned').onclick =()=>{ $('bldFs').value=''; $('floorFs').disabled=true; $('unitFs').disabled=true; fillAll($('floorFs'), []); fillAll($('unitFs'), []); renderSigned(); };
 
-        document.getElementById("printSigned").onclick = () => {
-            window.print();
-        };
+// ====== 流水號 1..500 循環 ======
+function nextSerial(){
+  let cur = parseInt(localStorage.getItem(SERIAL)||'0',10);
+  cur = (cur % 500) + 1; // 1..500
+  localStorage.setItem(SERIAL,String(cur));
+  return cur;
+}
+function removeSerialIfExists(sr){
+  // 在待簽收 / 已簽收中，若已有相同流水號，先移除
+  let p=load(PENDING,[]); let s=load(SIGNED,[]);
+  const rm = list => {
+    const i=list.findIndex(x=> x.serial===sr);
+    if(i>-1) list.splice(i,1);
+  };
+  rm(p); rm(s);
+  save(PENDING,p); save(SIGNED,s);
+}
 
-        // 初始化
-        if(!localStorage.getItem(PENDING)) save(PENDING, []);
-        if(!localStorage.getItem(SIGNED)) save(SIGNED, []);
-        renderPending();
-        renderSigned();
-    </script>
+// ====== 新增 → 待簽收 ======
+$('addBtn').onclick=()=>{
+  const b=$('bld').value, f=$('floor').value, u=$('unit').value, r=$('receiver').value.trim();
+  if(!b||!f||!u||!r) { alert('請完整填寫：棟 / 樓 / 戶 / 收件人'); return; }
+  const serial = nextSerial();
+  removeSerialIfExists(serial);
+  const list=load(PENDING,[]);
+  list.push({
+    serial,
+    created_at: nowISO(),
+    address: `${b} ${f}${u}`,
+    b,f,u,
+    category: $('category').value,
+    receiver: r,
+    company: $('company').value.trim(),
+    qty: parseInt(($('qty').value||'1'),10),
+    note: $('note').value.trim()
+  });
+  save(PENDING, list);
+  $('receiver').value=''; $('company').value=''; $('qty').value=1; $('note').value='';
+  renderPending(); switchTab('pending');
+};
+
+// ====== 待簽收列表（依三欄篩選） ======
+const tbPending=$('tbPending');
+function addrMatchRec(rec, bld, floor, unit){
+  if (bld  && rec.b!==bld) return false;
+  if (floor&& rec.f!==floor) return false;
+  if (unit && rec.u!==unit) return false;
+  return true;
+}
+function renderPending(){
+  const list=load(PENDING,[]);
+  const b=$('bldF').value, f=$('floorF').value, u=$('unitF').value;
+  const rows=list.filter(r=> addrMatchRec(r,b,f,u));
+  tbPending.innerHTML='';
+  rows.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${r.serial}</td><td>${r.created_at}</td><td>${esc(r.address)}</td><td>${esc(r.category)}</td><td>${esc(r.receiver)}</td><td>${esc(r.company)}</td><td>${r.qty}</td><td>${esc(r.note)}</td>
+    <td>
+      <button class="btn primary" data-act="sign" data-serial="${r.serial}">簽收</button>
+      <button class="btn danger" data-act="del" data-serial="${r.serial}">刪除</button>
+    </td>`;
+    tbPending.appendChild(tr);
+  });
+  $('pendingCount').textContent = `${list.length} 待簽收`;
+  $('pendingCount2').textContent = `${rows.length} 筆`;
+}
+
+tbPending.addEventListener('click', e=>{
+  const btn=e.target.closest('button'); if(!btn) return;
+  const sr=parseInt(btn.getAttribute('data-serial'),10);
+  const list=load(PENDING,[]); const idx=list.findIndex(x=>x.serial===sr);
+  if(btn.dataset.act==='del' && idx>-1){
+    if(confirm('刪除此待簽收？')){ list.splice(idx,1); save(PENDING,list); renderPending(); }
+  }else if(btn.dataset.act==='sign' && idx>-1){
+    openSign(sr, list[idx]);
+  }
+});
+$('exportPending').onclick=()=> exportCSV(load(PENDING,[]), 'pending.csv');
+
+// ====== 已簽收列表 ======
+const tbSigned=$('tbSigned');
+function renderSigned(){
+  const list=load(SIGNED,[]);
+  const b=$('bldFs').value, f=$('floorFs').value, u=$('unitFs').value;
+  const rows=list.filter(r=> addrMatchRec(r,b,f,u));
+  tbSigned.innerHTML='';
+  rows.forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${r.serial}</td><td>${r.created_at}</td><td>${esc(r.address)}</td><td>${esc(r.category)}</td><td>${esc(r.receiver)}</td><td>${esc(r.company)}</td><td>${r.qty}</td><td>${esc(r.note)}</td><td>${esc(r.signer||'')}</td><td>${r.signed_at||''}</td>
+    <td>`+(r.signature?`<span class="sig-link"><a class="btn" href="${r.signature}" download="signature_${r.serial}.png">下載</a></span><img class="sig-img" src="${r.signature}" alt="簽名 ${r.serial}" style="display:none"/>`:'—')+`</td>
+    <td><button class="btn danger" data-del="${r.serial}">刪除</button></td>`;
+    tbSigned.appendChild(tr);
+  });
+  $('signedCount').textContent = `${rows.length} 筆`;
+}
+
+tbSigned.addEventListener('click', e=>{
+  const sr=parseInt(e.target.getAttribute('data-del'),10); if(!sr) return;
+  const list=load(SIGNED,[]); const idx=list.findIndex(x=>x.serial===sr);
+  if(idx>-1 && confirm('刪除此已簽收？')){ list.splice(idx,1); save(SIGNED,list); renderSigned(); }
+});
+$('exportSigned').onclick=()=> exportCSV(load(SIGNED,[]), 'signed.csv');
+
+// ====== CSV 匯出 ======
+function exportCSV(arr, filename){
+  const header = ["serial","created_at","address","category","receiver","company","qty","note","signer","signed_at"];
+  const rows=[header.join(',')];
+  const escq = s=> `"${String(s??"").replace(/"/g,'""')}"`;
+  arr.forEach(o=> rows.push(header.map(k=> escq(o[k])).join(',')));
+  const blob=new Blob([rows.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),800);
+}
+
+// ====== 分頁切換 ======
+const tabs=[...document.querySelectorAll('.tab')];
+function switchTab(name){
+  tabs.forEach(t=> t.classList.toggle('active', t.dataset.tab===name));
+  ['add','pending','signed'].forEach(n=> document.getElementById('tab-'+n).style.display=(n===name?'block':'none'));
+  if(name==='pending') renderPending();
+  if(name==='signed') renderSigned();
+}
+ tabs.forEach(t=> t.addEventListener('click', ()=> switchTab(t.dataset.tab)));
+ renderPending(); renderSigned();
+
+// ====== 簽名 / 簽收 → 轉已簽收 ======
+const modal=$('signModal'), signerEl=$('signer'), signQtyEl=$('signQty'), sig=$('sig'), ctx=sig.getContext('2d'), signInfo=$('signInfo');
+let drawing=false,last=null,currentSerial=null;
+
+function resetCanvas(){ ctx.fillStyle="#0b1220"; ctx.fillRect(0,0,sig.width,sig.height); ctx.strokeStyle="#e5e7eb"; ctx.lineWidth=3; ctx.lineCap='round'; }
+resetCanvas();
+function pos(e){ const r=sig.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x:x*(sig.width/r.width), y:y*(sig.height/r.height)}; }
+function start(e){ drawing=true; last=pos(e); e.preventDefault(); }
+function move(e){ if(!drawing) return; const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; e.preventDefault(); }
+function end(){ drawing=false; last=null }
+ sig.addEventListener('mousedown',start); sig.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+ sig.addEventListener('touchstart',start,{passive:false}); sig.addEventListener('touchmove',move,{passive:false}); sig.addEventListener('touchend',end);
+ $('clearSig').onclick=resetCanvas;
+ $('cancelSign').onclick=()=> modal.classList.remove('show');
+
+function openSign(serial, rec){
+  currentSerial=serial;
+  signerEl.value=''; signQtyEl.value=rec.qty||1; resetCanvas();
+  signInfo.textContent = `流水號：${serial}｜住址：${rec.address}`;
+  modal.classList.add('show');
+}
+ $('confirmSign').onclick=()=>{
+  const signer=signerEl.value.trim(); if(!signer) return alert('請填簽收人');
+  let pend=load(PENDING,[]); const idx=pend.findIndex(x=>x.serial===currentSerial); if(idx===-1) return;
+  const item=pend[idx]; pend.splice(idx,1); save(PENDING,pend);
+  const signed=load(SIGNED,[]);
+  signed.push({...item, signer, signed_at: nowISO(), qty: parseInt(signQtyEl.value||item.qty,10), signature: sig.toDataURL('image/png')});
+  save(SIGNED, signed);
+  modal.classList.remove('show'); renderPending(); renderSigned(); switchTab('signed');
+};
+
+// ====== 其他：列印按鈕 ======
+$('printPending') && ($('printPending').onclick = ()=>{ switchTab('pending'); setTimeout(()=>window.print(),50); });
+$('printSigned')  && ($('printSigned').onclick  = ()=>{ switchTab('signed');  setTimeout(()=>window.print(),50); });
+
+// ====== 初次渲染 ======
+})();
+</script>
 </body>
 </html>
