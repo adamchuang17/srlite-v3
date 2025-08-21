@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>SimpleReceiveLite v4 — 住址名冊＋簽收＋循環流水＋部分條件搜尋</title>
+<title>SimpleReceiveLite v4</title>
 <style>
   :root{--bg:#0f172a;--panel:#0b1220;--card:#111827;--muted:#94a3b8;--text:#e5e7eb;--accent:#22c55e;--danger:#ef4444;--info:#0ea5e9}
   html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,"PingFang TC","Microsoft JhengHei",sans-serif}
@@ -47,7 +47,7 @@
 <body>
 <div class="wrap">
   <h1>📦 SimpleReceiveLite v4</h1>
-  <div class="sub">新增 → <b>住址三欄連動</b> → 待簽收列表<b>三欄搜尋（可只選一兩欄）</b> → <b>簽收（簽名＋件數）</b> → 已簽收；流水號<b>1–500循環</b>；<b>住址名冊</b>記住收件人與貨運公司；CSV 匯出。</div>
+  <div class="sub">新增 → <b>住址三欄連動</b> → 待簽收<b>可只選一兩欄搜尋</b> → <b>簽收（簽名＋件數）</b> → 已簽收；流水號<b>1–500循環</b>；<b>住址名冊</b>記住收件人與貨運公司；CSV 匯出；A4 列印。</div>
 
   <div class="tabs">
     <button class="tab active" data-tab="add">➕ 新增</button>
@@ -71,4 +71,296 @@
         <select id="category"><option>包裹</option><option>掛號</option></select>
       </div>
       <div><label>貨運公司</label>
-        <input id="company" list="companyList" placeholder="大榮 / 新竹 / 宅配通 / 宅急便 / 其他"
+        <input id="company" list="companyList" placeholder="大榮 / 新竹 / 宅配通 / 宅急便 / 其他" />
+        <datalist id="companyList">
+          <option value="大榮"><option value="新竹"><option value="宅配通"><option value="宅急便"><option value="其他">
+        </datalist>
+      </div>
+      <div><label>件數</label><input id="qty" type="number" min="1" value="1" /></div>
+      <div style="grid-column:1/-1"><label>備註</label><input id="note" placeholder="擺放位置或備註" /></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="addBtn">加入待簽收</button>
+      <span class="pill" id="pendingCount">0 待簽收</span>
+      <span class="pill">流水號循環：1–500</span>
+    </div>
+  </section>
+
+  <div style="height:10px"></div>
+
+  <!-- 待簽收 -->
+  <section id="tab-pending" class="card" style="display:none">
+    <div class="toolbar">
+      <div class="row" style="flex:1;gap:8px">
+        <select id="bldF" title="棟別"></select>
+        <select id="floorF" title="樓層" disabled></select>
+        <select id="unitF" title="戶別" disabled></select>
+        <button class="btn" id="resetPending">清除篩選</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="exportPendingToday">匯出CSV（今日未簽收）</button>
+        <button class="btn" id="exportPendingOverdue">匯出CSV（逾期3天未簽收）</button>
+        <button class="btn info" id="exportPending">匯出CSV（待簽收-累計）</button>
+        <span class="pill" id="pendingCount2">0 筆</span>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>號</th><th>收貨時間</th><th>住址</th><th>件別</th><th>收件人</th><th>貨運</th><th>件數</th><th>備註</th><th>動作</th></tr></thead>
+      <tbody id="tbPending"></tbody>
+    </table>
+  </section>
+
+  <div style="height:10px"></div>
+
+  <!-- 已簽收 -->
+  <section id="tab-signed" class="card" style="display:none">
+    <div class="toolbar">
+      <div class="row" style="flex:1;gap:8px">
+        <select id="bldFs" title="棟別"></select>
+        <select id="floorFs" title="樓層" disabled></select>
+        <select id="unitFs" title="戶別" disabled></select>
+        <button class="btn" id="resetSigned">清除篩選</button>
+      </div>
+      <div class="row">
+        <button class="btn info" id="exportSigned">匯出CSV（已簽收）</button>
+        <span class="pill" id="signedCount">0 筆</span>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>號</th><th>收貨時間</th><th>住址</th><th>件別</th><th>收件人</th><th>貨運</th><th>件數</th><th>備註</th><th>簽收人</th><th>簽收時間</th><th>簽名</th><th>動作</th></tr></thead>
+      <tbody id="tbSigned"></tbody>
+    </table>
+  </section>
+</div>
+
+<!-- 簽收視窗 -->
+<div class="modal" id="signModal">
+  <div class="box">
+    <h3 style="margin:0 0 8px">簽收</h3>
+    <div class="grid2">
+      <div><label>簽收人</label><input id="signer" placeholder="住戶簽收人" /></div>
+      <div><label>件數確認</label><input id="signQty" type="number" min="1" /></div>
+    </div>
+    <label style="margin-top:8px">簽名</label>
+    <canvas id="sig" width="880" height="220"></canvas>
+    <div class="row" style="margin-top:8px;justify-content:flex-end">
+      <span class="muted" id="signInfo"></span>
+      <button class="btn" id="clearSig">清除</button>
+      <button class="btn danger" id="cancelSign">取消</button>
+      <button class="btn primary" id="confirmSign">確認簽收 → 轉入已簽收</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(()=>{
+// ========== 工具 ==========
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const nowISO=()=>{const d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`};
+const load=(k,f)=>{try{return JSON.parse(localStorage.getItem(k)||JSON.stringify(f));}catch(_){return f;}};
+const save=(k,v)=> localStorage.setItem(k, JSON.stringify(v));
+const esc=s=>String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+function dayKey(d=new Date()){return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
+function dayFromISO(s){return (s||'').slice(0,10);} // "YYYY-MM-DD HH:mm:ss" → "YYYY-MM-DD"
+
+// ========== Keys ==========
+const PENDING='srl_v4_pending';
+const SIGNED='srl_v4_signed';
+const SERIAL='srl_v4_serial';          // 1..500 循環
+const BOOK  ='srl_v4_address_book';    // 住址名冊
+
+// ========== 地址 ==========
+const BUILDINGS=["甲","乙","丙","丁","戊","己"];
+const FLOORS=Array.from({length:14},(_,i)=> `${i+1}樓`);
+const UNITS =Array.from({length:8}, (_,i)=> `之${i+1}`);
+function fill(sel,arr,{placeholder}={}){ sel.innerHTML=''; const o0=document.createElement('option');o0.value='';o0.textContent=placeholder||'請選擇';sel.appendChild(o0); arr.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o);}); }
+function fillAll(sel,arr){ sel.innerHTML=''; const a=document.createElement('option');a.value='';a.textContent='全部';sel.appendChild(a); arr.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o);}); }
+const addressKey=(b,f,u)=> `${b} ${f}${u}`;
+
+// ===== 住址名冊（收件人/貨運） =====
+function loadBook(){return load(BOOK,{});}
+function saveBook(b){save(BOOK,b);}
+function uniq(arr,cap=50){const s=new Set();const out=[];arr.forEach(x=>{const v=String(x||'').trim();if(!v)return;const k=v.toLowerCase();if(!s.has(k)){s.add(k);out.push(v);}});return out.slice(0,cap);}
+function updateList(datalistId,arr){const dl=$(datalistId);dl.innerHTML=''; uniq(arr).forEach(v=>{const o=document.createElement('option');o.value=v;dl.appendChild(o);});}
+function refreshAddressSuggestions(){
+  const b=$('bld').value,f=$('floor').value,u=$('unit').value;
+  if(!b||!f||!u){ updateList('receiverList',[]); updateList('companyList',['大榮','新竹','宅配通','宅急便','其他']); return; }
+  const key=addressKey(b,f,u), book=loadBook();
+  updateList('receiverList', book[key]?.receivers||[]);
+  updateList('companyList', (book[key]?.companies||[]).concat(['大榮','新竹','宅配通','宅急便','其他']));
+}
+
+// ===== 新增表單：三欄連動 =====
+function initFormSelectors(){
+  fill($('bld'), BUILDINGS, {placeholder:'請選擇'});
+  $('floor').disabled=true; $('unit').disabled=true;
+  fill($('floor'), [], {placeholder:'請先選棟'});
+  fill($('unit'),  [], {placeholder:'請先選樓'});
+  refreshAddressSuggestions();
+}
+$('bld').addEventListener('change', ()=>{
+  if(!$('bld').value){ $('floor').disabled=true; $('unit').disabled=true; fill($('floor'), [], {placeholder:'請先選棟'}); fill($('unit'), [], {placeholder:'請先選樓'}); refreshAddressSuggestions(); return; }
+  fill($('floor'), FLOORS, {placeholder:'請選擇'}); $('floor').disabled=false;
+  fill($('unit'), [], {placeholder:'請先選樓'}); $('unit').disabled=true; refreshAddressSuggestions();
+});
+$('floor').addEventListener('change', ()=>{
+  if(!$('floor').value){ $('unit').disabled=true; fill($('unit'), [], {placeholder:'請先選樓'}); refreshAddressSuggestions(); return; }
+  fill($('unit'), UNITS, {placeholder:'請選擇'}); $('unit').disabled=false; refreshAddressSuggestions();
+});
+$('unit').addEventListener('change', refreshAddressSuggestions);
+initFormSelectors();
+
+// ===== 列表篩選（可只選一兩欄） =====
+function initFilters(bSel,fSel,uSel){
+  fillAll($(bSel), BUILDINGS);
+  $(fSel).disabled=true; $(uSel).disabled=true;
+  $(bSel).addEventListener('change', ()=>{
+    if(!$(bSel).value){ $(fSel).disabled=true; $(uSel).disabled=true; fillAll($(fSel), []); fillAll($(uSel), []); renderPending(); renderSigned(); return; }
+    fillAll($(fSel), FLOORS); $(fSel).disabled=false; $(uSel).disabled=true; fillAll($(uSel), []); renderPending(); renderSigned();
+  });
+  $(fSel).addEventListener('change', ()=>{
+    if(!$(fSel).value){ $(uSel).disabled=true; fillAll($(uSel), []); renderPending(); renderSigned(); return; }
+    fillAll($(uSel), UNITS); $(uSel).disabled=false; renderPending(); renderSigned();
+  });
+  $(uSel).addEventListener('change', ()=>{ renderPending(); renderSigned(); });
+}
+initFilters('bldF','floorF','unitF');
+initFilters('bldFs','floorFs','unitFs');
+$('resetPending').onclick=()=>{ $('bldF').value=''; $('floorF').disabled=true; $('unitF').disabled=true; fillAll($('floorF'), []); fillAll($('unitF'), []); renderPending(); };
+$('resetSigned').onclick =()=>{ $('bldFs').value=''; $('floorFs').disabled=true; $('unitFs').disabled=true; fillAll($('floorFs'), []); fillAll($('unitFs'), []); renderSigned(); };
+
+// ===== 流水號 1..500 循環，舊號先清 =====
+function nextSerial(){ let cur=parseInt(localStorage.getItem(SERIAL)||'0',10); cur=(cur%500)+1; localStorage.setItem(SERIAL,String(cur)); return cur; }
+function removeSerialEverywhere(sr){
+  let p=load(PENDING,[]), s=load(SIGNED,[]);
+  const rm=list=>{const i=list.findIndex(x=>x.serial===sr); if(i>-1) list.splice(i,1);};
+  rm(p); rm(s); save(PENDING,p); save(SIGNED,s);
+}
+
+// ===== 新增 → 待簽收（更新名冊） =====
+$('addBtn').onclick=()=>{
+  const b=$('bld').value,f=$('floor').value,u=$('unit').value, recv=$('receiver').value.trim();
+  if(!b||!f||!u||!recv){alert('請完整填寫：棟 / 樓 / 戶 / 收件人');return;}
+  const serial=nextSerial(); removeSerialEverywhere(serial);
+  const comp=$('company').value.trim();
+  const list=load(PENDING,[]);
+  list.push({serial,created_at:nowISO(),address:addressKey(b,f,u),b,f,u,category:$('category').value,receiver:recv,company:comp,qty:parseInt(($('qty').value||'1'),10),note:$('note').value.trim()});
+  save(PENDING,list);
+
+  const key=addressKey(b,f,u), book=loadBook(); if(!book[key]) book[key]={receivers:[],companies:[]};
+  book[key].receivers=uniq([recv,...(book[key].receivers||[])]); if(comp) book[key].companies=uniq([comp,...(book[key].companies||[])]);
+  saveBook(book); refreshAddressSuggestions();
+
+  $('receiver').value=''; $('company').value=''; $('qty').value=1; $('note').value='';
+  renderPending(); switchTab('pending');
+};
+
+// ===== 待簽收（含篩選） =====
+const tbPending=$('tbPending');
+function addrMatch(rec,b,f,u){
+  if(b && rec.b!==b) return false;
+  if(f && rec.f!==f) return false;
+  if(u && rec.u!==u) return false;
+  return true;
+}
+function renderPending(){
+  const list=load(PENDING,[]);
+  const b=$('bldF').value,f=$('floorF').value,u=$('unitF').value;
+  const rows=list.filter(r=>addrMatch(r,b,f,u));
+  tbPending.innerHTML='';
+  rows.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${r.serial}</td><td>${r.created_at}</td><td>${esc(r.address)}</td><td>${esc(r.category)}</td><td>${esc(r.receiver)}</td><td>${esc(r.company)}</td><td>${r.qty}</td><td>${esc(r.note)}</td>
+    <td><button class="btn primary" data-act="sign" data-serial="${r.serial}">簽收</button> <button class="btn danger" data-act="del" data-serial="${r.serial}">刪除</button></td>`;
+    tbPending.appendChild(tr);
+  });
+  $('pendingCount').textContent=`${list.length} 待簽收`;
+  $('pendingCount2').textContent=`${rows.length} 筆`;
+}
+tbPending.addEventListener('click',e=>{
+  const btn=e.target.closest('button'); if(!btn) return;
+  const sr=parseInt(btn.getAttribute('data-serial'),10);
+  const list=load(PENDING,[]); const idx=list.findIndex(x=>x.serial===sr);
+  if(btn.dataset.act==='del'&&idx>-1){ if(confirm('刪除此待簽收？')){ list.splice(idx,1); save(PENDING,list); renderPending(); } }
+  if(btn.dataset.act==='sign'&&idx>-1){ openSign(sr,list[idx]); }
+});
+$('exportPending').onclick=()=> exportCSV(load(PENDING,[]),'pending_all.csv');
+$('exportPendingToday').onclick=()=>{ const t=dayKey(); const a=load(PENDING,[]).filter(r=>dayFromISO(r.created_at)===t); exportCSV(a,`pending_today_${t}.csv`); };
+$('exportPendingOverdue').onclick=()=>{ const a=load(PENDING,[]); const d=new Date(); d.setDate(d.getDate()-3); const over=a.filter(r=> new Date((r.created_at||'').replace(' ','T'))<d ); exportCSV(over,`pending_over3days_${dayKey()}.csv`); };
+
+// ===== 已簽收 =====
+const tbSigned=$('tbSigned');
+function renderSigned(){
+  const list=load(SIGNED,[]);
+  const b=$('bldFs').value,f=$('floorFs').value,u=$('unitFs').value;
+  const rows=list.filter(r=>addrMatch(r,b,f,u));
+  tbSigned.innerHTML='';
+  rows.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${r.serial}</td><td>${r.created_at}</td><td>${esc(r.address)}</td><td>${esc(r.category)}</td><td>${esc(r.receiver)}</td><td>${esc(r.company)}</td><td>${r.qty}</td><td>${esc(r.note)}</td><td>${esc(r.signer||'')}</td><td>${r.signed_at||''}</td>
+    <td>${r.signature?`<a class="btn" href="${r.signature}" download="signature_${r.serial}.png">下載</a>`:'—'}</td>
+    <td><button class="btn danger" data-del="${r.serial}">刪除</button></td>`;
+    tbSigned.appendChild(tr);
+  });
+  $('signedCount').textContent=`${rows.length} 筆`;
+}
+tbSigned.addEventListener('click',e=>{
+  const sr=parseInt(e.target.getAttribute('data-del'),10); if(!sr) return;
+  const list=load(SIGNED,[]); const idx=list.findIndex(x=>x.serial===sr);
+  if(idx>-1 && confirm('刪除此已簽收？')){ list.splice(idx,1); save(SIGNED,list); renderSigned(); }
+});
+$('exportSigned').onclick=()=> exportCSV(load(SIGNED,[]),'signed_all.csv');
+
+// ===== CSV =====
+function exportCSV(arr, filename){
+  const header=["serial","created_at","address","category","receiver","company","qty","note","signer","signed_at"];
+  const rows=[header.join(',')];
+  const escq=s=>`"${String(s??"").replace(/"/g,'""')}"`;
+  arr.forEach(o=> rows.push(header.map(k=>escq(o[k])).join(',')));
+  const blob=new Blob([rows.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),800);
+}
+
+// ===== Tabs =====
+const tabs=[...document.querySelectorAll('.tab')];
+function switchTab(name){
+  tabs.forEach(t=> t.classList.toggle('active', t.dataset.tab===name));
+  ['add','pending','signed'].forEach(n=> $('tab-'+n).style.display=(n===name?'block':'none'));
+  if(name==='pending') renderPending();
+  if(name==='signed') renderSigned();
+}
+tabs.forEach(t=> t.addEventListener('click', ()=> switchTab(t.dataset.tab)));
+renderPending(); renderSigned();
+
+// ===== 簽名/簽收 → 已簽收 =====
+const modal=$('signModal'), signerEl=$('signer'), signQtyEl=$('signQty'), sig=$('sig'), ctx=sig.getContext('2d'), signInfo=$('signInfo');
+let drawing=false,last=null,currentSerial=null;
+function resetCanvas(){ ctx.fillStyle="#0b1220"; ctx.fillRect(0,0,sig.width,sig.height); ctx.strokeStyle="#e5e7eb"; ctx.lineWidth=3; ctx.lineCap='round'; }
+resetCanvas();
+function pos(e){ const r=sig.getBoundingClientRect(); const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left; const y=(e.touches?e.touches[0].clientY:e.clientY)-r.top; return {x:x*(sig.width/r.width), y:y*(sig.height/r.height)}; }
+function start(e){ drawing=true; last=pos(e); e.preventDefault(); }
+function move(e){ if(!drawing) return; const p=pos(e); ctx.beginPath(); ctx.moveTo(last.x,last.y); ctx.lineTo(p.x,p.y); ctx.stroke(); last=p; e.preventDefault(); }
+function end(){ drawing=false; last=null }
+sig.addEventListener('mousedown',start); sig.addEventListener('mousemove',move); window.addEventListener('mouseup',end);
+sig.addEventListener('touchstart',start,{passive:false}); sig.addEventListener('touchmove',move,{passive:false}); sig.addEventListener('touchend',end);
+$('clearSig').onclick=resetCanvas;
+$('cancelSign').onclick=()=> modal.classList.remove('show');
+
+function openSign(serial, rec){
+  currentSerial=serial;
+  signerEl.value=''; signQtyEl.value=rec.qty||1; resetCanvas();
+  signInfo.textContent=`流水號：${serial}｜住址：${rec.address}`;
+  modal.classList.add('show');
+}
+$('confirmSign').onclick=()=>{
+  const signer=signerEl.value.trim(); if(!signer) return alert('請填簽收人');
+  let pend=load(PENDING,[]); const idx=pend.findIndex(x=>x.serial===currentSerial); if(idx===-1) return;
+  const item=pend[idx]; pend.splice(idx,1); save(PENDING,pend);
+  const signed=load(SIGNED,[]); signed.push({...item, signer, signed_at:nowISO(), qty:parseInt(signQtyEl.value||item.qty,10), signature:sig.toDataURL('image/png')});
+  save(SIGNED,signed); modal.classList.remove('show'); renderPending(); renderSigned(); switchTab('signed');
+};
+})();
+</script>
+</body>
+</html>
